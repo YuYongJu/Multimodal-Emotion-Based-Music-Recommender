@@ -2,36 +2,92 @@
 .venv/
 venv/
 env/
+ENV/
 
 # Python cache files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Distribution / packaging
-dist/
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
-# Environment variables
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
 
-# Credentials
+# Credentials and API keys
+*.json
+!package.json
+!package-lock.json
 turing-terminus-392618-aeb7c4cc7413.json
 
-# Local development settings
-.DS_Store
+# IDE specific files
 .idea/
 .vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
 
-# Spotify cache
+# Project specific
+*.xlsx
+*.h5
+*.pkl
+.cache/
+logs/
+*.log
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
 .cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
-# Model files (if large, consider using Git LFS instead)
-# *.h5
-
-# Excel outputs
-# *.xlsx 
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json 

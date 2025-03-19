@@ -1,85 +1,114 @@
-# Music Emotion Classification for TikTok Videos
+# Music Emotion Classification System
 
-This project automatically recommends music for TikTok videos based on emotional analysis of both the video content and music tracks.
+An AI-powered system that analyzes video content and recommends emotionally matching music using Google Cloud Video Intelligence and Spotify APIs.
 
 ## Features
 
-- Fetches music metadata from Spotify playlists
-- Analyzes video content using Google Cloud Video Intelligence API
-- Classifies music tracks into emotional categories
-- Recommends music based on video content and emotional matching
+- **Video Content Analysis**: Uses Google Cloud Video Intelligence API to analyze video content and extract meaningful labels and categories
+- **Music Emotion Classification**: Neural network model that classifies music tracks into emotional categories
+- **Smart Recommendations**: Recommends music based on emotional matching between video content and music tracks
+- **Spotify Integration**: Fetches music metadata from Spotify playlists
+- **Environment Variable Support**: Secure credential management using .env files
 
-## Setup
+## Prerequisites
 
-1. Create a virtual environment:
+- Python 3.8+
+- Google Cloud Platform account with Video Intelligence API enabled
+- Spotify Developer account with API credentials
+- Required Python packages (see requirements.txt)
+
+## Installation
+
+1. Clone the repository:
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+git clone https://github.com/yourusername/Music-Emotion-Classification.git
+cd Music-Emotion-Classification
 ```
 
-2. Install dependencies:
+2. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+# On Windows:
+.venv\Scripts\activate
+# On Unix or MacOS:
+source .venv/bin/activate
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up Spotify API credentials:
-- Create a Spotify Developer account
-- Create a new application
-- Add `http://localhost:8888/callback` to Redirect URIs
-- Copy Client ID and Client Secret to `recommend_spotify_playlist_music_for_tiktok_edits.py`
-
-4. Set up Google Cloud credentials:
-- Create a Google Cloud project
-- Enable Video Intelligence API
-- Create a service account and download credentials
-- Set the environment variable: `GOOGLE_APPLICATION_CREDENTIALS=path/to/credentials.json`
+4. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Fill in your credentials:
+     ```
+     SPOTIFY_CLIENT_ID=your_spotify_client_id
+     SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+     GOOGLE_APPLICATION_CREDENTIALS=path_to_your_credentials.json
+     PLAYLIST_IDS=your_playlist_ids
+     BUCKET_NAME=your_bucket_name
+     ```
 
 ## Usage
 
-Run the full pipeline:
+The system can be run in different modes:
+
+1. **Fetch Spotify Data**:
+```bash
+python main.py --fetch-spotify
+```
+
+2. **Analyze Video Content**:
+```bash
+python main.py --analyze-video
+```
+
+3. **Train Emotion Classifier**:
+```bash
+python main.py --train-model
+```
+
+4. **Get Music Recommendations**:
+```bash
+python main.py --recommend
+```
+
+5. **Run Full Pipeline**:
 ```bash
 python main.py --full-pipeline
 ```
 
-Or run individual components:
-```bash
-# Fetch Spotify data
-python main.py --fetch-spotify --playlist-id YOUR_PLAYLIST_ID
-
-# Analyze video content
-python main.py --analyze-video --bucket-name YOUR_BUCKET_NAME
-
-# Train emotion classifier
-python main.py --train-model
-
-# Get music recommendations
-python main.py --recommend
-```
-
 ## Project Structure
 
-- `main.py`: Main entry point and pipeline orchestration
+- `main.py`: Main script orchestrating the entire system
 - `AutoLabel.py`: Music emotion classification model
-- `recommend_spotify_playlist_music_for_tiktok_edits.py`: Spotify data collection
-- `GoogleVideoIntelligenceAPI.py`: Video content analysis
+- `GoogleVideoIntelligenceAPI.py`: Video content analysis using Google Cloud
+- `recommend_spotify_playlist_music_for_tiktok_edits.py`: Spotify playlist processing
+- `.env`: Environment variables and credentials (not committed to git)
+- `requirements.txt`: Python package dependencies
 
-## Output
+## Security Best Practices
 
-The system generates:
-1. `spotify_metadata.xlsx`: Music track metadata from Spotify
-2. `GoogleVideoIntelligenceLabelAnalyzer_results.xlsx`: Video content analysis
-3. `emotion_classifier_model.h5`: Trained emotion classification model
-4. Music recommendations based on video content
+- Credentials are stored in `.env` file (not committed to git)
+- Google Cloud credentials are managed securely
+- API keys are never exposed in the code
+- Sensitive data is excluded from version control
 
-## Emotion Categories
+## Contributing
 
-The system classifies music into five emotional categories:
-- Happy
-- Sad
-- Energetic
-- Calm
-- Aggressive
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-MIT License 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Google Cloud Video Intelligence API
+- Spotify Web API
+- TensorFlow for machine learning capabilities 

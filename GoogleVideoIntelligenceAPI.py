@@ -5,10 +5,14 @@ import os
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
+from dotenv import load_dotenv
 
-# Path to your service account key file in the current directory
+# Load environment variables
+load_dotenv()
+
+# Get credentials file path from environment variable
 current_dir = os.path.dirname(os.path.abspath(__file__))
-key_path = os.path.join(current_dir, "turing-terminus-392618-aeb7c4cc7413.json")
+key_path = os.path.join(current_dir, os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
 
 # Create a credentials object
 credentials = service_account.Credentials.from_service_account_file(key_path)

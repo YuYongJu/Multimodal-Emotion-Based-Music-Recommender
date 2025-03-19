@@ -6,11 +6,35 @@ from AutoLabel import MusicEmotionClassifier
 import argparse
 import sys
 import random
+import tensorflow as tf
+from tensorflow.keras.models import Sequential, load_model
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import joblib
+from dotenv import load_dotenv
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+from GoogleVideoIntelligenceAPI import analyze_videos_in_bucket
+from datetime import datetime
+import json
 
-# Set Google Cloud credentials path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-credentials_path = os.path.join(current_dir, 'turing-terminus-392618-aeb7c4cc7413.json')
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+# Load environment variables
+load_dotenv()
+
+# Initialize Spotify client with environment variables
+spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(
+    client_id=os.getenv('SPOTIFY_CLIENT_ID'),
+    client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')
+))
+
+# Set Google Cloud credentials path from environment variable
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+# Get playlist IDs from environment variable
+PLAYLIST_IDS = os.getenv('PLAYLIST_IDS').split(',')
+
+# Get bucket name from environment variables
+BUCKET_NAME = os.getenv('BUCKET_NAME', 'music-emotion-classification-videos')
 
 def fetch_spotify_data(playlist_id=None):
     """Fetch Spotify metadata for a playlist"""
@@ -37,7 +61,6 @@ def analyze_video(bucket_name):
     
     try:
         # Try to import and run the actual video analysis
-        from GoogleVideoIntelligenceAPI import analyze_videos_in_bucket
         video_data_path = analyze_videos_in_bucket(bucket_name)
         return video_data_path
     except Exception as e:

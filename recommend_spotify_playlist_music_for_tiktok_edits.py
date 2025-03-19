@@ -1,28 +1,26 @@
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyClientCredentials
 import pandas as pd
 import sys
-
+import random
 # Spotify API credentials
-# You need to replace these with your own credentials from your Spotify Developer account
-# Get them from https://developer.spotify.com/dashboard/
-SPOTIFY_CLIENT_ID = '25bb4432c3f04e3d9744c141278c13d1'  # Replace with your client ID
-SPOTIFY_CLIENT_SECRET = 'fe163149e2f44693b7ff8aa3a44f3670'  # Replace with your client secret
-REDIRECT_URI = 'http://localhost:8888/callback'
+# Load credentials from .env file
+import os
+from dotenv import load_dotenv
 
-# Create a Spotify client with proper authentication
-try:
-    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id=SPOTIFY_CLIENT_ID,
-        client_secret=SPOTIFY_CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        scope='playlist-read-private playlist-read-collaborative'
-    ))
-    print("Successfully connected to Spotify API!")
-except Exception as e:
-    print(f"Error connecting to Spotify API: {e}")
-    print("Please check your credentials and internet connection.")
-    sys.exit(1)
+# Load environment variables
+load_dotenv()
+
+# Get credentials from environment variables
+SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
+
+# Initialize Spotify client
+sp = spotipy.Spotify(
+    client_id=SPOTIFY_CLIENT_ID,
+    client_secret=SPOTIFY_CLIENT_SECRET,
+    auth_manager=SpotifyClientCredentials()
+)
 
 # Function to search for playlists
 def search_playlists(query, limit=5):
