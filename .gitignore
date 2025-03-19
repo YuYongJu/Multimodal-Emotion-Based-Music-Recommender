@@ -1,0 +1,37 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+
+# Credentials
+turing-terminus-392618-aeb7c4cc7413.json
+
+# Local development settings
+.DS_Store
+.idea/
+.vscode/
+
+# Spotify cache
+.cache
+
+# Model files (if large, consider using Git LFS instead)
+# *.h5
+
+# Excel outputs
+# *.xlsx 

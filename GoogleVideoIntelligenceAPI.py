@@ -1,12 +1,14 @@
 from google.cloud import storage, videointelligence
 from google.oauth2 import service_account
 import pandas as pd
+import os
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Path to your service account key file
-key_path = "C:/Users/Asian/OneDrive/Desktop/AI/Research/Music Emotion Classification/turing-terminus-392618-aeb7c4cc7413.json"
+# Path to your service account key file in the current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+key_path = os.path.join(current_dir, "turing-terminus-392618-aeb7c4cc7413.json")
 
 # Create a credentials object
 credentials = service_account.Credentials.from_service_account_file(key_path)
@@ -16,162 +18,237 @@ storage_client = storage.Client(credentials=credentials)
 video_client = videointelligence.VideoIntelligenceServiceClient(credentials=credentials)
 
 def analyze_videos_in_bucket(bucket_name):
-    video_client = videointelligence.VideoIntelligenceServiceClient()
+    """Analyze videos in the bucket and return the output file path"""
+    try:
+        # Use the global video_client that already has credentials
+        global video_client, storage_client
 
-    features = [
-        videointelligence.Feature.LABEL_DETECTION,
-        videointelligence.Feature.SHOT_CHANGE_DETECTION,
-        videointelligence.Feature.EXPLICIT_CONTENT_DETECTION
-    ]
+        features = [
+            videointelligence.Feature.LABEL_DETECTION,
+            videointelligence.Feature.SHOT_CHANGE_DETECTION,
+            videointelligence.Feature.EXPLICIT_CONTENT_DETECTION
+        ]
 
-    # Get the list of objects in the bucket
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-    blobs = bucket.list_blobs()
+        # Get the list of objects in the bucket
+        # Use global storage_client with credentials
+        bucket = storage_client.get_bucket(bucket_name)
+        blobs = bucket.list_blobs()
 
-    # Create empty lists to store the results
-    label_results = []
-    explicit_results = []
-    shot_results = []
+        # Create empty lists to store the results
+        label_results = []
+        explicit_results = []
+        shot_results = []
 
-    for blob in blobs:
-        if blob.name.endswith('.mp4'):
-            input_uri = "gs://{}/{}".format(bucket_name, blob.name)
-            operation = video_client.annotate_video(
-                request={
-                    "features": features,
-                    "input_uri": input_uri,
-                }
-            )
-            print("\nProcessing video {} for label annotations:".format(blob.name))
+        video_count = 0
+        for blob in blobs:
+            if blob.name.endswith('.mp4'):
+                video_count += 1
+                input_uri = "gs://{}/{}".format(bucket_name, blob.name)
+                operation = video_client.annotate_video(
+                    request={
+                        "features": features,
+                        "input_uri": input_uri,
+                    }
+                )
+                print("\nProcessing video {} for label annotations:".format(blob.name))
 
-            result = operation.result(timeout=180)
-            print("Finished processing video {}.".format(blob.name))
+                result = operation.result(timeout=180)
+                print("Finished processing video {}.".format(blob.name))
 
-            # Label detection
-            segment_labels = result.annotation_results[0].segment_label_annotations
-            for segment_label in segment_labels:
-                label_description = segment_label.entity.description
-                for category_entity in segment_label.category_entities:
-                    category_description = category_entity.description
+                # Label detection
+                segment_labels = result.annotation_results[0].segment_label_annotations
+                for segment_label in segment_labels:
+                    label_description = segment_label.entity.description
+                    for category_entity in segment_label.category_entities:
+                        category_description = category_entity.description
 
-                    for segment in segment_label.segments:
-                        start_time = segment.segment.start_time_offset.seconds + segment.segment.start_time_offset.microseconds / 1e6
-                        end_time = segment.segment.end_time_offset.seconds + segment.segment.end_time_offset.microseconds / 1e6
-                        confidence = segment.confidence
+                        for segment in segment_label.segments:
+                            start_time = segment.segment.start_time_offset.seconds + segment.segment.start_time_offset.microseconds / 1e6
+                            end_time = segment.segment.end_time_offset.seconds + segment.segment.end_time_offset.microseconds / 1e6
+                            confidence = segment.confidence
 
-                        # Append the results to the label results list
-                        label_results.append({
-                            "Video": blob.name,
-                            "Label Description": label_description,
-                            "Category Description": category_description,
-                            "Start Time": start_time,
-                            "End Time": end_time,
-                            "Confidence": confidence
-                        })
+                            # Append the results to the label results list
+                            label_results.append({
+                                "Video": blob.name,
+                                "Label Description": label_description,
+                                "Category Description": category_description,
+                                "Start Time": start_time,
+                                "End Time": end_time,
+                                "Confidence": confidence
+                            })
 
-            # Explicit content detection
-            explicit_content = result.annotation_results[0].explicit_annotation
-            video_confidences = []  # List to store confidences for each video
-            for frame in explicit_content.frames:
-                time_offset = frame.time_offset.seconds + frame.time_offset.microseconds / 1e6
-                pornography_likelihood = frame.pornography_likelihood
+                # Explicit content detection
+                explicit_content = result.annotation_results[0].explicit_annotation
+                video_confidences = []  # List to store confidences for each video
+                for frame in explicit_content.frames:
+                    time_offset = frame.time_offset.seconds + frame.time_offset.microseconds / 1e6
+                    pornography_likelihood = frame.pornography_likelihood
 
-                # Append the results to the explicit content results list
+                    # Append the results to the explicit content results list
+                    explicit_results.append({
+                        "Video": blob.name,
+                        "Label Description": "Explicit Content",
+                        "Category Description": "N/A",
+                        "Start Time": time_offset,
+                        "End Time": time_offset,
+                        "Confidence": pornography_likelihood
+                    })
+
+                    # Append the confidence to the video_confidences list
+                    video_confidences.append(pornography_likelihood)
+
+                # Calculate the mean confidence for the video
+                video_mean_confidence = sum(video_confidences) / len(video_confidences) if video_confidences else 0
+
+                # Append the mean confidence to the explicit content results for the video
                 explicit_results.append({
                     "Video": blob.name,
-                    "Label Description": "Explicit Content",
+                    "Label Description": "Mean Confidence",
                     "Category Description": "N/A",
-                    "Start Time": time_offset,
-                    "End Time": time_offset,
-                    "Confidence": pornography_likelihood
+                    "Start Time": None,
+                    "End Time": None,
+                    "Confidence": video_mean_confidence
                 })
 
-                # Append the confidence to the video_confidences list
-                video_confidences.append(pornography_likelihood)
+                # Shot change detection
+                shot_annotations = result.annotation_results[0].shot_annotations
+                for shot in shot_annotations:
+                    start_time = shot.start_time_offset.seconds + shot.start_time_offset.microseconds / 1e6
+                    end_time = shot.end_time_offset.seconds + shot.end_time_offset.microseconds / 1e6
 
-            # Calculate the mean confidence for the video
-            video_mean_confidence = sum(video_confidences) / len(video_confidences)
+                    # Append the results to the shot detection results list
+                    shot_results.append({
+                        "Video": blob.name,
+                        "Label Description": "Shot Change",
+                        "Category Description": "N/A",
+                        "Start Time": start_time,
+                        "End Time": end_time,
+                        "Confidence": None  # No confidence value for shot change detection
+                    })
 
-            # Append the mean confidence to the explicit content results for the video
-            explicit_results.append({
-                "Video": blob.name,
-                "Label Description": "Mean Confidence",
-                "Category Description": "N/A",
-                "Start Time": None,
-                "End Time": None,
-                "Confidence": video_mean_confidence
-            })
+        if video_count == 0:
+            print("No videos found in the bucket.")
+            return None
 
-            # Shot change detection
-            shot_annotations = result.annotation_results[0].shot_annotations
-            for shot in shot_annotations:
-                start_time = shot.start_time_offset.seconds + shot.start_time_offset.microseconds / 1e6
-                end_time = shot.end_time_offset.seconds + shot.end_time_offset.microseconds / 1e6
+        # Create DataFrames from the results
+        label_df = pd.DataFrame(label_results)
+        explicit_df = pd.DataFrame(explicit_results)
+        shot_df = pd.DataFrame(shot_results)
 
-                # Append the results to the shot detection results list
-                shot_results.append({
-                    "Video": blob.name,
-                    "Label Description": "Shot Change",
-                    "Category Description": "N/A",
-                    "Start Time": start_time,
-                    "End Time": end_time,
-                    "Confidence": None  # No confidence value for shot change detection
-                })
+        # Create an Excel workbook
+        workbook = Workbook()
 
-    # Create DataFrames from the results
-    label_df = pd.DataFrame(label_results)
-    explicit_df = pd.DataFrame(explicit_results)
-    shot_df = pd.DataFrame(shot_results)
+        # Create sheets for each table
+        label_sheet = workbook.active
+        label_sheet.title = "Label Detection"
+        explicit_sheet = workbook.create_sheet(title="Explicit Content Detection")
+        shot_sheet = workbook.create_sheet(title="Shot Detection")
 
-    # Create an Excel workbook
-    workbook = Workbook()
+        # Write tables to the respective sheets
+        for row in dataframe_to_rows(label_df, index=False, header=True):
+            label_sheet.append(row)
 
-    # Create sheets for each table
-    label_sheet = workbook.active
-    label_sheet.title = "Label Detection"
-    explicit_sheet = workbook.create_sheet(title="Explicit Content Detection")
-    shot_sheet = workbook.create_sheet(title="Shot Detection")
+        for row in dataframe_to_rows(explicit_df, index=False, header=True):
+            explicit_sheet.append(row)
 
-    # Write tables to the respective sheets
-    for row in dataframe_to_rows(label_df, index=False, header=True):
-        label_sheet.append(row)
+        for row in dataframe_to_rows(shot_df, index=False, header=True):
+            shot_sheet.append(row)
 
-    for row in dataframe_to_rows(explicit_df, index=False, header=True):
-        explicit_sheet.append(row)
+        # Apply formatting to the tables
+        header_font = Font(bold=True)
+        alignment = Alignment(horizontal="center", vertical="center")
 
-    for row in dataframe_to_rows(shot_df, index=False, header=True):
-        shot_sheet.append(row)
+        for cell in label_sheet[1]:
+            cell.font = header_font
+            cell.alignment = alignment
 
-    # Apply formatting to the tables
-    header_font = Font(bold=True)
-    alignment = Alignment(horizontal="center", vertical="center")
+        for cell in explicit_sheet[1]:
+            cell.font = header_font
+            cell.alignment = alignment
 
-    for cell in label_sheet[1]:
-        cell.font = header_font
-        cell.alignment = alignment
+        for cell in shot_sheet[1]:
+            cell.font = header_font
+            cell.alignment = alignment
 
-    for cell in explicit_sheet[1]:
-        cell.font = header_font
-        cell.alignment = alignment
+        # Save the Excel file
+        excel_file = "GoogleVideoIntelligenceLabelAnalyzer_results.xlsx"
+        workbook.save(excel_file)
+        print("Results saved to {}".format(excel_file))
+        
+        return excel_file
+    except Exception as e:
+        print(f"Error analyzing videos: {e}")
+        raise
 
-    for cell in shot_sheet[1]:
-        cell.font = header_font
-        cell.alignment = alignment
+def list_videos_in_bucket(bucket_name):
+    try:
+        bucket = storage_client.get_bucket(bucket_name)
+        blobs = list(bucket.list_blobs())
+        
+        video_files = [blob.name for blob in blobs if blob.name.lower().endswith(('.mp4', '.mov', '.avi'))]
+        
+        if video_files:
+            print(f"Found {len(video_files)} videos in bucket '{bucket_name}':")
+            for video in video_files:
+                print(f"- {video}")
+            return True
+        else:
+            print(f"No videos found in bucket '{bucket_name}'.")
+            return False
+    except Exception as e:
+        print(f"Error accessing bucket '{bucket_name}': {e}")
+        return False
 
-    # Save the Excel file
-    excel_file = "video_results.xlsx"
-    workbook.save(excel_file)
-    print("Results saved to {}".format(excel_file))
+def create_bucket_if_not_exists(bucket_name):
+    try:
+        storage_client.get_bucket(bucket_name)
+        print(f"Bucket '{bucket_name}' already exists.")
+        return True
+    except Exception:
+        try:
+            bucket = storage_client.create_bucket(bucket_name)
+            print(f"Bucket '{bucket_name}' created successfully.")
+            return True
+        except Exception as e:
+            print(f"Failed to create bucket '{bucket_name}': {e}")
+            return False
 
-# Specify your bucket name
-bucket_name = "anime_food_landscape_object_bucket"
+def upload_video_to_bucket(bucket_name, source_file_path, destination_blob_name=None):
+    """Uploads a file to the bucket."""
+    if destination_blob_name is None:
+        destination_blob_name = os.path.basename(source_file_path)
+    
+    try:
+        bucket = storage_client.get_bucket(bucket_name)
+        blob = bucket.blob(destination_blob_name)
+        
+        # Upload the file
+        blob.upload_from_filename(source_file_path)
+        
+        print(f"File {source_file_path} uploaded to {destination_blob_name} in bucket {bucket_name}.")
+        return True
+    except Exception as e:
+        print(f"Error uploading file to bucket: {e}")
+        return False
 
-# Call the function to analyze videos in the bucket and save the results as an Excel file
-analyze_videos_in_bucket(bucket_name)
-
-
-
+if __name__ == "__main__":
+    # Specify your bucket name
+    bucket_name = "anime_food_landscape_object_bucket"
+    
+    # Check if bucket exists and create it if needed
+    if create_bucket_if_not_exists(bucket_name):
+        # Check if there are videos in the bucket
+        has_videos = list_videos_in_bucket(bucket_name)
+        
+        if has_videos:
+            # Call the function to analyze videos in the bucket and save the results as an Excel file
+            analyze_videos_in_bucket(bucket_name)
+        else:
+            print("\nPlease upload videos to the bucket before running analysis.")
+            print("You can use the upload_video_to_bucket function to upload videos.")
+            print("Example: upload_video_to_bucket(bucket_name, 'path/to/your/video.mp4')")
+    else:
+        print("Cannot proceed with video analysis without a valid bucket.")
 
 # """Analyze Labels"""
 # from google.cloud import videointelligence
