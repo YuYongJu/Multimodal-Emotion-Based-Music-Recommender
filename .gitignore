@@ -39,6 +39,8 @@ wheels/
 *.json
 !package.json
 !package-lock.json
+!results/benchmark.json
+!results/evaluation.json
 turing-terminus-392618-aeb7c4cc7413.json
 
 # IDE specific files
@@ -53,6 +55,8 @@ Thumbs.db
 *.xlsx
 *.h5
 *.pkl
+!emotion_classifier_model.h5
+!emotion_scaler.pkl
 .cache/
 logs/
 *.log
@@ -93,6 +97,8 @@ coverage.xml
 dmypy.json 
 # Credentials
 *.json
+!results/benchmark.json
+!results/evaluation.json
 turing-terminus-*.json
 .env
 .env.*

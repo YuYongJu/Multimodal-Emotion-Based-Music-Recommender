@@ -1,0 +1,114 @@
+{
+  "dataset": {
+    "path": "data/synthetic_tracks.csv",
+    "tracks": 10500,
+    "synthetic": true,
+    "train_samples": 8400,
+    "test_samples": 2100
+  },
+  "training": {
+    "epochs": 25,
+    "seed": 42,
+    "model_architecture": "Dense(64) \u2192 Dropout(0.3) \u2192 Dense(32) \u2192 Dropout(0.3) \u2192 Dense(5, softmax)",
+    "feature_columns": [
+      "danceability",
+      "energy",
+      "key",
+      "loudness",
+      "mode",
+      "speechiness",
+      "acousticness",
+      "instrumentalness",
+      "liveness",
+      "valence",
+      "tempo"
+    ]
+  },
+  "metrics": {
+    "accuracy": 0.9738,
+    "per_class": {
+      "happy": {
+        "precision": 0.9333,
+        "recall": 0.9589,
+        "f1_score": 0.9459,
+        "support": 146
+      },
+      "sad": {
+        "precision": 0.9407,
+        "recall": 0.9407,
+        "f1_score": 0.9407,
+        "support": 135
+      },
+      "energetic": {
+        "precision": 0.981,
+        "recall": 0.9853,
+        "f1_score": 0.9831,
+        "support": 1153
+      },
+      "calm": {
+        "precision": 0.971,
+        "recall": 0.9659,
+        "f1_score": 0.9684,
+        "support": 381
+      },
+      "aggressive": {
+        "precision": 0.9856,
+        "recall": 0.9614,
+        "f1_score": 0.9734,
+        "support": 285
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "happy",
+        "sad",
+        "energetic",
+        "calm",
+        "aggressive"
+      ],
+      "matrix": [
+        [
+          140,
+          0,
+          6,
+          0,
+          0
+        ],
+        [
+          0,
+          127,
+          0,
+          8,
+          0
+        ],
+        [
+          10,
+          0,
+          1136,
+          3,
+          4
+        ],
+        [
+          0,
+          8,
+          5,
+          368,
+          0
+        ],
+        [
+          0,
+          0,
+          11,
+          0,
+          274
+        ]
+      ]
+    },
+    "confidence_top1": {
+      "mean": 0.94,
+      "median": 0.9932,
+      "fraction_high_confidence_ge_0_9": 0.8105,
+      "fraction_low_confidence_le_0_5": 0.0005
+    }
+  }
+}
