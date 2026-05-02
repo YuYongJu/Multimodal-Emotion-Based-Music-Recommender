@@ -1,206 +1,193 @@
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import pandas as pd
-import sys
-import random
-# Spotify API credentials
-# Load credentials from .env file
-import os
-from dotenv import load_dotenv
+"""Spotify metadata fetcher with real audio feature extraction.
 
-# Load environment variables
+Replaces the previous version that fabricated audio features. Now fetches
+the actual danceability/energy/valence/tempo/etc. for each track via the
+audio_features module (Spotify API → librosa preview fallback).
+"""
+from __future__ import annotations
+
+import os
+import sys
+from typing import Optional
+
+import pandas as pd
+import spotipy
+from dotenv import load_dotenv
+from spotipy.oauth2 import SpotifyClientCredentials
+
+from audio_features import FEATURE_COLUMNS, FeatureUnavailable, get_audio_features
+
 load_dotenv()
 
-# Get credentials from environment variables
-SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
-SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 
-# Initialize Spotify client
-sp = spotipy.Spotify(
-    client_id=SPOTIFY_CLIENT_ID,
-    client_secret=SPOTIFY_CLIENT_SECRET,
-    auth_manager=SpotifyClientCredentials()
-)
+def _get_spotify_client() -> spotipy.Spotify:
+    client_id = os.getenv("SPOTIFY_CLIENT_ID")
+    client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise RuntimeError(
+            "SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in .env"
+        )
+    return spotipy.Spotify(
+        client_credentials_manager=SpotifyClientCredentials(
+            client_id=client_id, client_secret=client_secret
+        )
+    )
 
-# Function to search for playlists
-def search_playlists(query, limit=5):
+
+def search_playlists(sp: spotipy.Spotify, query: str, limit: int = 5) -> list:
+    print(f"Searching Spotify for playlists matching: {query!r}")
     try:
-        print(f"Searching for playlists with query: '{query}'")
-        results = sp.search(q=query, type='playlist', limit=limit)
-        
-        if not results or 'playlists' not in results or 'items' not in results['playlists']:
-            print(f"No valid playlist results found for query: '{query}'")
-            return []
-            
-        playlists = results['playlists']['items']
-        
-        if not playlists:
-            print(f"No playlists found for query: '{query}'")
-            return []
-            
-        print(f"Found {len(playlists)} playlists:")
-        valid_playlists = []
-        
-        for i, playlist in enumerate(playlists):
-            try:
-                # Only include playlists with required fields
-                if 'id' in playlist and 'name' in playlist:
-                    playlist_name = playlist['name']
-                    playlist_id = playlist['id']
-                    
-                    # Get owner display name safely
-                    owner_name = "Unknown user"
-                    if 'owner' in playlist and playlist['owner'] and 'display_name' in playlist['owner']:
-                        owner_name = playlist['owner']['display_name']
-                    
-                    # Get track count safely
-                    track_count = 0
-                    if 'tracks' in playlist and playlist['tracks'] and 'total' in playlist['tracks']:
-                        track_count = playlist['tracks']['total']
-                    
-                    print(f"{i+1}. {playlist_name} (ID: {playlist_id}) by {owner_name} - {track_count} tracks")
-                    valid_playlists.append(playlist)
-            except Exception as e:
-                print(f"Error processing playlist {i+1}: {e}")
-                continue
-                
-        return valid_playlists
-    except Exception as e:
-        print(f"Error searching for playlists: {e}")
+        results = sp.search(q=query, type="playlist", limit=limit)
+    except Exception as exc:
+        print(f"Search failed: {exc}")
         return []
 
-# Function to get Spotify metadata for a given track
-def get_track_metadata(track_id):
+    items = (results or {}).get("playlists", {}).get("items") or []
+    valid = [p for p in items if p and p.get("id") and p.get("name")]
+    for i, p in enumerate(valid, 1):
+        owner = (p.get("owner") or {}).get("display_name", "Unknown")
+        track_count = (p.get("tracks") or {}).get("total", 0)
+        print(f"  {i}. {p['name']} ({p['id']}) by {owner} — {track_count} tracks")
+    return valid
+
+
+def _get_track_metadata(sp: spotipy.Spotify, track_id: str) -> Optional[dict]:
     try:
         track = sp.track(track_id)
-        metadata = {
-            'track_id': track_id,
-            'track_name': track['name'],
-            'artist': track['artists'][0]['name'],
-            'album_name': track['album']['name'],
-            'release_date': track['album']['release_date'],
-            'duration_ms': track['duration_ms'],
-            'popularity': track['popularity'],
-            'preview_url': track.get('preview_url', '')
-        }
-        return metadata
-    except Exception as e:
-        print(f"Error getting metadata for track {track_id}: {e}")
+    except Exception as exc:
+        print(f"  ! could not fetch metadata for {track_id}: {exc}")
         return None
+    return {
+        "track_id": track_id,
+        "track_name": track["name"],
+        "artist": track["artists"][0]["name"] if track["artists"] else "",
+        "album_name": track["album"]["name"],
+        "release_date": track["album"]["release_date"],
+        "duration_ms": track["duration_ms"],
+        "popularity": track["popularity"],
+        "preview_url": track.get("preview_url") or "",
+    }
 
-# Function to fetch Spotify metadata for songs in a playlist
-def fetch_spotify_metadata(playlist_id):
-    try:
-        print(f"Fetching playlist with ID: {playlist_id}")
-        
-        # Get tracks from the playlist
-        offset = 0
-        tracks = []
-        while True:
-            try:
-                results = sp.playlist_items(playlist_id, fields="items(track(id))", offset=offset)
-                if not results['items']:
-                    break
-                tracks.extend(results['items'])
-                offset += len(results['items'])
-                print(f"Fetched {len(tracks)} tracks so far...")
-            except Exception as e:
-                print(f"Error fetching playlist items at offset {offset}: {e}")
-                break
 
-        if not tracks:
-            print("No tracks found in playlist.")
-            return pd.DataFrame()
+def fetch_spotify_metadata(
+    playlist_id: str, sp: Optional[spotipy.Spotify] = None, track_limit: int = 50
+) -> pd.DataFrame:
+    """Fetch playlist metadata + real audio features for each track."""
+    if sp is None:
+        sp = _get_spotify_client()
 
-        track_ids = [track['track']['id'] for track in tracks if track['track']]
-        print(f"Found {len(track_ids)} valid track IDs")
-        
-        # Limit to 20 tracks for testing
-        if len(track_ids) > 20:
-            print("Limiting to 20 tracks for faster processing...")
-            track_ids = track_ids[:20]
+    print(f"Fetching playlist {playlist_id}...")
+    track_ids: list[str] = []
+    offset = 0
+    while True:
+        try:
+            page = sp.playlist_items(
+                playlist_id, fields="items(track(id))", offset=offset
+            )
+        except Exception as exc:
+            print(f"  ! playlist_items failed at offset {offset}: {exc}")
+            break
+        items = page.get("items") or []
+        if not items:
+            break
+        for item in items:
+            tid = (item.get("track") or {}).get("id")
+            if tid:
+                track_ids.append(tid)
+        offset += len(items)
+        print(f"  collected {len(track_ids)} track ids so far")
 
-        # List to store the metadata
-        metadata_list = []
-
-        # Iterate over each track and fetch Spotify metadata
-        for i, track_id in enumerate(track_ids):
-            print(f"Processing track {i+1}/{len(track_ids)}: {track_id}")
-            track_metadata = get_track_metadata(track_id)
-            if track_metadata:
-                metadata_list.append(track_metadata)
-
-        # Create a dataframe from the metadata list
-        df = pd.DataFrame(metadata_list)
-        
-        print(f"Successfully processed {len(metadata_list)} tracks")
-        return df
-    except Exception as e:
-        print(f"Error in fetch_spotify_metadata: {e}")
+    if not track_ids:
+        print("No tracks found in playlist.")
         return pd.DataFrame()
 
-# Main execution
-try:
-    print("Starting Spotify metadata extraction...")
-    
-    # Fallback playlist IDs from Spotify (Verified to work in most regions)
-    # Today's Top Hits, Spotify Global Top 50, Global Viral 50
-    fallback_playlist_ids = [
+    if len(track_ids) > track_limit:
+        print(f"Limiting to first {track_limit} tracks for tractable runtime")
+        track_ids = track_ids[:track_limit]
+
+    rows = []
+    spotify_audio_features_works = True
+    librosa_count = 0
+    skipped = 0
+
+    for i, tid in enumerate(track_ids, 1):
+        print(f"[{i}/{len(track_ids)}] {tid}")
+        meta = _get_track_metadata(sp, tid)
+        if meta is None:
+            skipped += 1
+            continue
+
+        feature_sp = sp if spotify_audio_features_works else None
+        try:
+            features = get_audio_features(tid, meta["preview_url"], sp=feature_sp)
+        except FeatureUnavailable as exc:
+            print(f"  ! {exc}")
+            skipped += 1
+            continue
+
+        source = features.pop("_source", "unknown")
+        if source != "spotify_api":
+            spotify_audio_features_works = False
+            if source == "librosa_preview":
+                librosa_count += 1
+
+        meta.update(features)
+        rows.append(meta)
+
+    if not rows:
+        print("No tracks produced usable features.")
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    print(
+        f"\nDone: {len(df)} tracks with features "
+        f"(librosa fallback used for {librosa_count}, skipped {skipped})"
+    )
+    return df
+
+
+def main(argv: list[str] | None = None) -> int:
+    sp = _get_spotify_client()
+
+    fallback_playlists = [
         ("37i9dQZF1DXcBWIGoYBM5M", "Today's Top Hits"),
-        ("37i9dQZF1DXcBWIGoYBM5M", "Top 50 - Global"),
         ("37i9dQZF1DXa2EiKmMLhFD", "Release Radar"),
-        ("37i9dQZEVXbNG2KDcFcKOF", "Spotify Viral 50")
+        ("37i9dQZEVXbNG2KDcFcKOF", "Spotify Viral 50"),
     ]
-    
-    # Try the search approach first
-    playlist_id = None
-    playlist_name = None
-    
-    # Search for pop playlists
-    playlists = search_playlists("pop")
-    
-    if not playlists:
-        print("No playlists found with 'pop'. Trying 'hits'...")
-        playlists = search_playlists("hits")
-    
-    if playlists:
-        # Use the first playlist from search results
-        selected_playlist = playlists[0]
-        playlist_id = selected_playlist['id']
-        playlist_name = selected_playlist['name']
-        print(f"Using playlist from search: {playlist_name} (ID: {playlist_id})")
-    else:
-        # Try fallback playlists
-        print("No playlists found via search. Trying fallback playlists...")
-        
-        for fallback_id, fallback_name in fallback_playlist_ids:
-            try:
-                # Test if the playlist exists
-                test = sp.playlist(fallback_id, fields="id,name")
-                playlist_id = fallback_id
-                playlist_name = test.get('name', fallback_name)
-                print(f"Using fallback playlist: {playlist_name} (ID: {playlist_id})")
-                break
-            except Exception as e:
-                print(f"Fallback playlist {fallback_name} not accessible: {e}")
-                continue
-    
+
+    playlist_id, playlist_name = None, None
+    for query in ("pop", "hits"):
+        candidates = search_playlists(sp, query)
+        if candidates:
+            playlist_id = candidates[0]["id"]
+            playlist_name = candidates[0]["name"]
+            print(f"Using search result: {playlist_name} ({playlist_id})")
+            break
+
     if not playlist_id:
-        print("Could not find any accessible playlists. Exiting.")
-        sys.exit(1)
-    
-    # Fetch metadata from the selected playlist
-    df = fetch_spotify_metadata(playlist_id)
-    
+        for fid, fname in fallback_playlists:
+            try:
+                sp.playlist(fid, fields="id,name")
+                playlist_id, playlist_name = fid, fname
+                print(f"Using fallback: {playlist_name} ({playlist_id})")
+                break
+            except Exception as exc:
+                print(f"Fallback {fname} unavailable: {exc}")
+
+    if not playlist_id:
+        print("Could not find any accessible playlist. Aborting.")
+        return 1
+
+    df = fetch_spotify_metadata(playlist_id, sp=sp)
     if df.empty:
-        print("No data was fetched. Exiting.")
-        sys.exit(1)
-        
-    # Export the dataframe to an Excel file
-    safe_name = ''.join(c if c.isalnum() or c == ' ' else '_' for c in playlist_name)
-    output_file = f'spotify_metadata_{safe_name.replace(" ", "_")}.xlsx'
+        return 1
+
+    safe_name = "".join(c if c.isalnum() or c == " " else "_" for c in playlist_name)
+    output_file = f"spotify_metadata_{safe_name.replace(' ', '_')}.xlsx"
     df.to_excel(output_file, index=False)
-    print("Data exported to", output_file)
-except Exception as e:
-    print(f"Error in main execution: {e}")
-    sys.exit(1)
+    print(f"Wrote {output_file} with {list(df.columns)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

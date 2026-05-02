@@ -1,114 +1,86 @@
 # Music Emotion Classification System
 
-An AI-powered system that analyzes video content and recommends emotionally matching music using Google Cloud Video Intelligence and Spotify APIs.
+End-to-end multimodal pipeline that takes a video, classifies its emotional
+context via Google Cloud Video Intelligence, and recommends emotionally
+matching music tracks from a Spotify playlist using real audio features
+and a Keras emotion classifier.
 
-## Features
+## Pipeline
 
-- **Video Content Analysis**: Uses Google Cloud Video Intelligence API to analyze video content and extract meaningful labels and categories
-- **Music Emotion Classification**: Neural network model that classifies music tracks into emotional categories
-- **Smart Recommendations**: Recommends music based on emotional matching between video content and music tracks
-- **Spotify Integration**: Fetches music metadata from Spotify playlists
-- **Environment Variable Support**: Secure credential management using .env files
-
-## Prerequisites
-
-- Python 3.8+
-- Google Cloud Platform account with Video Intelligence API enabled
-- Spotify Developer account with API credentials
-- Required Python packages (see requirements.txt)
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/Music-Emotion-Classification.git
-cd Music-Emotion-Classification
+```
+Spotify playlist  →  audio features  →  emotion classifier (Keras)
+                                                ↓
+GCS bucket video  →  Video Intelligence labels  →  emotion target
+                                                ↓
+                                       ranked recommendations
 ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On Unix or MacOS:
-source .venv/bin/activate
-```
+## Audio features — important note on Spotify API status
 
-3. Install dependencies:
+Spotify deprecated the public `audio-features` endpoint for new third-party
+applications on 2024-11-27. This project handles that with a two-source
+extractor (`audio_features.py`):
+
+1. **Spotify Web API** — used first when the app credentials still have
+   access (apps registered before the deprecation date typically do).
+2. **Local DSP via librosa** — fallback that downloads the 30-second
+   preview MP3 exposed by `track.preview_url` and computes Spotify-shaped
+   features locally (RMS energy, beat-track tempo, chroma key/mode,
+   spectral centroid as valence proxy, zero-crossing rate as speechiness,
+   spectral flatness as instrumentalness, RMS variance as liveness).
+
+If neither source is available for a given track, the track is dropped
+rather than substituted with fabricated values. This is a deliberate
+design choice — earlier versions of this code used `random.uniform()` to
+fill in features, which made the model train on noise.
+
+## Setup
+
 ```bash
+git clone https://github.com/YuYongJu/Multimodal-Emotion-Based-Music-Recommender.git
+cd Multimodal-Emotion-Based-Music-Recommender
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Fill in your credentials:
-     ```
-     SPOTIFY_CLIENT_ID=your_spotify_client_id
-     SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-     GOOGLE_APPLICATION_CREDENTIALS=path_to_your_credentials.json
-     PLAYLIST_IDS=your_playlist_ids
-     BUCKET_NAME=your_bucket_name
-     ```
+Create a `.env` file (do not commit it):
+
+```env
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+PLAYLIST_IDS=37i9dQZF1DXcBWIGoYBM5M
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+BUCKET_NAME=your-gcs-bucket-with-mp4s
+```
+
+The `GOOGLE_APPLICATION_CREDENTIALS` and `BUCKET_NAME` variables are only
+needed when running `--analyze-video`. Spotify-only operations work
+without them.
 
 ## Usage
 
-The system can be run in different modes:
-
-1. **Fetch Spotify Data**:
 ```bash
-python main.py --fetch-spotify
+python main.py --fetch-spotify                 # build metadata + features xlsx
+python main.py --analyze-video                 # run Video Intelligence on bucket
+python main.py --train-model                   # train classifier on real features
+python main.py --recommend                     # rank tracks for the analyzed video
+python main.py --full-pipeline                 # run all four in order
+python main.py --fetch-spotify --playlist-id <ID>
 ```
 
-2. **Analyze Video Content**:
-```bash
-python main.py --analyze-video
-```
+## Files
 
-3. **Train Emotion Classifier**:
-```bash
-python main.py --train-model
-```
+- `main.py` — CLI orchestration, lazy-init for both API clients
+- `audio_features.py` — Spotify API → librosa fallback feature extractor
+- `recommend_spotify_playlist_music_for_tiktok_edits.py` — playlist fetch with feature attachment
+- `AutoLabel.py` — `MusicEmotionClassifier` (Keras MLP, real features)
+- `GoogleVideoIntelligenceAPI.py` — GCS + Video Intelligence wrapper, lazy clients
 
-4. **Get Music Recommendations**:
-```bash
-python main.py --recommend
-```
-
-5. **Run Full Pipeline**:
-```bash
-python main.py --full-pipeline
-```
-
-## Project Structure
-
-- `main.py`: Main script orchestrating the entire system
-- `AutoLabel.py`: Music emotion classification model
-- `GoogleVideoIntelligenceAPI.py`: Video content analysis using Google Cloud
-- `recommend_spotify_playlist_music_for_tiktok_edits.py`: Spotify playlist processing
-- `.env`: Environment variables and credentials (not committed to git)
-- `requirements.txt`: Python package dependencies
-
-## Security Best Practices
-
-- Credentials are stored in `.env` file (not committed to git)
-- Google Cloud credentials are managed securely
-- API keys are never exposed in the code
-- Sensitive data is excluded from version control
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+The `emotion_classifier_model.h5` and `emotion_scaler.pkl` artifacts are
+not committed because earlier checked-in versions were trained on
+fabricated features and had no predictive value. Run `--train-model`
+after a fresh `--fetch-spotify` to produce honest weights.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Google Cloud Video Intelligence API
-- Spotify Web API
-- TensorFlow for machine learning capabilities 
+MIT — see [LICENSE](LICENSE).

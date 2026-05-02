@@ -7,24 +7,40 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Get credentials file path from environment variable
-current_dir = os.path.dirname(os.path.abspath(__file__))
-key_path = os.path.join(current_dir, os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
+storage_client = None
+video_client = None
 
-# Create a credentials object
-credentials = service_account.Credentials.from_service_account_file(key_path)
 
-# Use the credentials when creating the clients
-storage_client = storage.Client(credentials=credentials)
-video_client = videointelligence.VideoIntelligenceServiceClient(credentials=credentials)
+def _ensure_clients():
+    """Lazily build GCP clients so importing this module never fails on
+    a missing GOOGLE_APPLICATION_CREDENTIALS env var. Clients are only
+    constructed when a function that needs them is actually called."""
+    global storage_client, video_client
+    if storage_client is not None and video_client is not None:
+        return
+
+    cred_env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not cred_env:
+        raise RuntimeError(
+            "GOOGLE_APPLICATION_CREDENTIALS env var is not set. "
+            "Point it at your GCP service account JSON before calling "
+            "any Video Intelligence function."
+        )
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    key_path = cred_env if os.path.isabs(cred_env) else os.path.join(current_dir, cred_env)
+    if not os.path.exists(key_path):
+        raise RuntimeError(f"Service account JSON not found at {key_path}")
+
+    credentials = service_account.Credentials.from_service_account_file(key_path)
+    storage_client = storage.Client(credentials=credentials)
+    video_client = videointelligence.VideoIntelligenceServiceClient(credentials=credentials)
 
 def analyze_videos_in_bucket(bucket_name):
     """Analyze videos in the bucket and return the output file path"""
+    _ensure_clients()
     try:
-        # Use the global video_client that already has credentials
         global video_client, storage_client
 
         features = [
@@ -185,6 +201,7 @@ def analyze_videos_in_bucket(bucket_name):
         raise
 
 def list_videos_in_bucket(bucket_name):
+    _ensure_clients()
     try:
         bucket = storage_client.get_bucket(bucket_name)
         blobs = list(bucket.list_blobs())
@@ -204,6 +221,7 @@ def list_videos_in_bucket(bucket_name):
         return False
 
 def create_bucket_if_not_exists(bucket_name):
+    _ensure_clients()
     try:
         storage_client.get_bucket(bucket_name)
         print(f"Bucket '{bucket_name}' already exists.")
@@ -219,9 +237,10 @@ def create_bucket_if_not_exists(bucket_name):
 
 def upload_video_to_bucket(bucket_name, source_file_path, destination_blob_name=None):
     """Uploads a file to the bucket."""
+    _ensure_clients()
     if destination_blob_name is None:
         destination_blob_name = os.path.basename(source_file_path)
-    
+
     try:
         bucket = storage_client.get_bucket(bucket_name)
         blob = bucket.blob(destination_blob_name)
