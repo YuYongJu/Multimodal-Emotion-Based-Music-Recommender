@@ -91,3 +91,9 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json 
+# Credentials
+*.json
+turing-terminus-*.json
+.env
+.env.*
+service-account*.json
