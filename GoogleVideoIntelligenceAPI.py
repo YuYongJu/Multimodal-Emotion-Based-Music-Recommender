@@ -1,11 +1,12 @@
+import os
+
+import pandas as pd
+from dotenv import load_dotenv
 from google.cloud import storage, videointelligence
 from google.oauth2 import service_account
-import pandas as pd
-import os
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Alignment, Font
 from openpyxl.utils.dataframe import dataframe_to_rows
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -63,17 +64,17 @@ def analyze_videos_in_bucket(bucket_name):
         for blob in blobs:
             if blob.name.endswith('.mp4'):
                 video_count += 1
-                input_uri = "gs://{}/{}".format(bucket_name, blob.name)
+                input_uri = f"gs://{bucket_name}/{blob.name}"
                 operation = video_client.annotate_video(
                     request={
                         "features": features,
                         "input_uri": input_uri,
                     }
                 )
-                print("\nProcessing video {} for label annotations:".format(blob.name))
+                print(f"\nProcessing video {blob.name} for label annotations:")
 
                 result = operation.result(timeout=180)
-                print("Finished processing video {}.".format(blob.name))
+                print(f"Finished processing video {blob.name}.")
 
                 # Label detection
                 segment_labels = result.annotation_results[0].segment_label_annotations
@@ -193,7 +194,7 @@ def analyze_videos_in_bucket(bucket_name):
         # Save the Excel file
         excel_file = "GoogleVideoIntelligenceLabelAnalyzer_results.xlsx"
         workbook.save(excel_file)
-        print("Results saved to {}".format(excel_file))
+        print(f"Results saved to {excel_file}")
         
         return excel_file
     except Exception as e:
@@ -228,7 +229,7 @@ def create_bucket_if_not_exists(bucket_name):
         return True
     except Exception:
         try:
-            bucket = storage_client.create_bucket(bucket_name)
+            storage_client.create_bucket(bucket_name)
             print(f"Bucket '{bucket_name}' created successfully.")
             return True
         except Exception as e:

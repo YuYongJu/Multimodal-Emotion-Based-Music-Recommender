@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from audio_features import FEATURE_COLUMNS
 
@@ -46,7 +45,7 @@ class TestAudioFeatureGeneration:
                 f"{col} out of [0, 1]"
         assert (df["tempo"] >= 50.0).all() and (df["tempo"] <= 200.0).all()
         assert (df["loudness"] >= -60.0).all() and (df["loudness"] <= 0.0).all()
-        assert df["key"].isin(range(0, 12)).all()
+        assert df["key"].isin(range(12)).all()
         assert df["mode"].isin([0, 1]).all()
 
     def test_no_nan_in_feature_columns(self) -> None:

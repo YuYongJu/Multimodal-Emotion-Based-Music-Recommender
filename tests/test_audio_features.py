@@ -50,7 +50,7 @@ class TestFromSpotify:
     def test_filters_to_canonical_feature_columns_only(self) -> None:
         sp = MagicMock()
         sp.audio_features.return_value = [{
-            **{c: 0.5 for c in FEATURE_COLUMNS},
+            **dict.fromkeys(FEATURE_COLUMNS, 0.5),
             "uri": "spotify:track:abc",
             "track_href": "https://api.spotify.com/...",
             "analysis_url": "https://api.spotify.com/...",
@@ -114,7 +114,7 @@ class TestGetAudioFeatures:
         """When Spotify works, librosa path must not be touched."""
         sp = MagicMock()
         sp.audio_features.return_value = [{
-            **{c: 0.42 for c in FEATURE_COLUMNS}, "id": "abc",
+            **dict.fromkeys(FEATURE_COLUMNS, 0.42), "id": "abc",
         }]
         librosa_spy = mocker.patch("audio_features.from_preview_url")
         result = get_audio_features("abc", "https://example.com/p.mp3", sp=sp)
@@ -124,7 +124,7 @@ class TestGetAudioFeatures:
     def test_falls_back_to_librosa_when_spotify_returns_none(self, mocker) -> None:
         sp = MagicMock()
         sp.audio_features.return_value = [None]
-        librosa_features = {c: 0.3 for c in FEATURE_COLUMNS}
+        librosa_features = dict.fromkeys(FEATURE_COLUMNS, 0.3)
         mocker.patch(
             "audio_features.from_preview_url", return_value=librosa_features
         )
@@ -139,7 +139,7 @@ class TestGetAudioFeatures:
             get_audio_features("abc", "https://example.com/p.mp3", sp=sp)
 
     def test_no_spotify_client_uses_librosa_directly(self, mocker) -> None:
-        librosa_features = {c: 0.5 for c in FEATURE_COLUMNS}
+        librosa_features = dict.fromkeys(FEATURE_COLUMNS, 0.5)
         mocker.patch(
             "audio_features.from_preview_url", return_value=librosa_features
         )

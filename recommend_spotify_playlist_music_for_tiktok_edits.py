@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
 
 import pandas as pd
 import spotipy
 from dotenv import load_dotenv
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from audio_features import FEATURE_COLUMNS, FeatureUnavailable, get_audio_features
+from audio_features import FeatureUnavailable, get_audio_features
 
 load_dotenv()
 
@@ -51,7 +50,7 @@ def search_playlists(sp: spotipy.Spotify, query: str, limit: int = 5) -> list:
     return valid
 
 
-def _get_track_metadata(sp: spotipy.Spotify, track_id: str) -> Optional[dict]:
+def _get_track_metadata(sp: spotipy.Spotify, track_id: str) -> dict | None:
     try:
         track = sp.track(track_id)
     except Exception as exc:
@@ -70,7 +69,7 @@ def _get_track_metadata(sp: spotipy.Spotify, track_id: str) -> Optional[dict]:
 
 
 def fetch_spotify_metadata(
-    playlist_id: str, sp: Optional[spotipy.Spotify] = None, track_limit: int = 50
+    playlist_id: str, sp: spotipy.Spotify | None = None, track_limit: int = 50
 ) -> pd.DataFrame:
     """Fetch playlist metadata + real audio features for each track."""
     if sp is None:

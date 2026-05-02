@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import io
 import math
-import os
-from typing import Optional
 
 import numpy as np
 import requests
@@ -31,7 +29,7 @@ class FeatureUnavailable(RuntimeError):
     pass
 
 
-def from_spotify(sp, track_id: str) -> Optional[dict]:
+def from_spotify(sp, track_id: str) -> dict | None:
     """Try the Spotify Web API audio-features endpoint."""
     try:
         result = sp.audio_features([track_id])
@@ -43,7 +41,7 @@ def from_spotify(sp, track_id: str) -> Optional[dict]:
     return {col: feat.get(col) for col in FEATURE_COLUMNS}
 
 
-def from_preview_url(preview_url: str) -> Optional[dict]:
+def from_preview_url(preview_url: str) -> dict | None:
     """Compute Spotify-shaped features from the 30-second preview MP3.
 
     Uses librosa for the DSP. The mapping to Spotify's proprietary
@@ -119,7 +117,7 @@ def from_preview_url(preview_url: str) -> Optional[dict]:
     }
 
 
-def get_audio_features(track_id: str, preview_url: Optional[str], sp=None) -> dict:
+def get_audio_features(track_id: str, preview_url: str | None, sp=None) -> dict:
     """Get audio features for a track using whichever source is available.
 
     Resolution order: Spotify API → librosa on preview URL → FeatureUnavailable.

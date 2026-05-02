@@ -110,6 +110,7 @@ class TestMainModuleImportsCleanly:
             monkeypatch.delenv(var, raising=False)
         # Force re-import to verify
         import importlib
+
         import main
         importlib.reload(main)
         assert callable(main.map_video_content_to_emotions)

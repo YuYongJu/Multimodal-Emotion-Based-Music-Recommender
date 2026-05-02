@@ -7,8 +7,6 @@ had no predictive signal — that has been removed.
 """
 from __future__ import annotations
 
-from typing import Optional
-
 import joblib
 import numpy as np
 import pandas as pd

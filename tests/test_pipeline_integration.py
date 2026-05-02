@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -28,8 +27,9 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def trained_classifier_on_synth(small_track_dataframe: pd.DataFrame):
-    from AutoLabel import FEATURE_COLUMNS, MusicEmotionClassifier
     from generate_synthetic_dataset import generate_audio_features
+
+    from AutoLabel import FEATURE_COLUMNS, MusicEmotionClassifier
 
     df = generate_audio_features(n=200, seed=7)
     feats = df[FEATURE_COLUMNS]
@@ -78,7 +78,6 @@ class TestFullPipelineIntegration:
     ) -> None:
         """End-to-end: video xlsx + metadata xlsx + trained model →
         ranked recommendations DataFrame with expected schema."""
-        from AutoLabel import MusicEmotionClassifier
         import main
 
         model_path = tmp_path / "emotion_classifier_model.h5"
@@ -243,6 +242,7 @@ class TestVideoSegmentsThroughEmotionMapper:
 
     def test_action_segments_produce_aggressive_target(self) -> None:
         from generate_synthetic_dataset import generate_video_segments
+
         from main import map_video_content_to_emotions
 
         df = generate_video_segments(num_segments=200, seed=42)
@@ -257,6 +257,7 @@ class TestVideoSegmentsThroughEmotionMapper:
 
     def test_full_synthetic_dataset_yields_all_five_emotion_classes(self) -> None:
         from generate_synthetic_dataset import generate_video_segments
+
         from main import map_video_content_to_emotions
 
         df = generate_video_segments(num_segments=1100, seed=42)

@@ -13,12 +13,11 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Optional
 
 import pandas as pd
 from dotenv import load_dotenv
 
-from AutoLabel import EMOTION_CATEGORIES, FEATURE_COLUMNS, MusicEmotionClassifier
+from AutoLabel import FEATURE_COLUMNS, MusicEmotionClassifier
 
 load_dotenv()
 
@@ -34,7 +33,7 @@ def _require_env(name: str) -> str:
     return value
 
 
-def fetch_spotify_data(playlist_id: Optional[str] = None,
+def fetch_spotify_data(playlist_id: str | None = None,
                       output_file: str = DEFAULT_SPOTIFY_FILE) -> str:
     """Fetch Spotify playlist + real audio features, write to xlsx."""
     print("Fetching Spotify metadata with real audio features...")

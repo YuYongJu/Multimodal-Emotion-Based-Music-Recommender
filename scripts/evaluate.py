@@ -38,7 +38,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from sklearn.metrics import (  # noqa: E402
-    accuracy_score, classification_report, confusion_matrix,
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
 )
 from sklearn.model_selection import train_test_split  # noqa: E402
 
@@ -98,14 +100,14 @@ def main(argv: list[str] | None = None) -> int:
     confidence_top1 = pred_probs.max(axis=1)
 
     print(f"\nOverall accuracy: {accuracy:.4f}")
-    print(f"\nPer-class metrics:")
+    print("\nPer-class metrics:")
     for emotion in EMOTION_CATEGORIES:
         m = report.get(emotion, {})
         print(f"  {emotion:>11}: precision={m.get('precision', 0):.3f}  "
               f"recall={m.get('recall', 0):.3f}  f1={m.get('f1-score', 0):.3f}  "
               f"support={int(m.get('support', 0))}")
 
-    print(f"\nConfidence distribution:")
+    print("\nConfidence distribution:")
     print(f"  mean: {confidence_top1.mean():.3f}")
     print(f"  median: {np.median(confidence_top1):.3f}")
     print(f"  fraction >= 0.9: {(confidence_top1 >= 0.9).mean():.3f}")
