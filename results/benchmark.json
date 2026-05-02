@@ -19,56 +19,72 @@
   },
   "inference_latency": {
     "1": {
-      "wall_seconds": 139.241,
-      "per_track_microseconds": 13261.05,
-      "throughput_tracks_per_second": 75.4,
-      "median_batch_call_ms": 13.074,
-      "p95_batch_call_ms": 14.514,
-      "p99_batch_call_ms": 16.059
+      "wall_seconds": 147.3361,
+      "per_track_microseconds": 14032.01,
+      "throughput_tracks_per_second": 71.3,
+      "median_batch_call_ms": 13.56,
+      "p95_batch_call_ms": 16.35,
+      "p99_batch_call_ms": 17.482
     },
     "32": {
-      "wall_seconds": 4.4512,
-      "per_track_microseconds": 423.92,
-      "throughput_tracks_per_second": 2358.9,
-      "median_batch_call_ms": 13.209,
-      "p95_batch_call_ms": 14.215,
-      "p99_batch_call_ms": 15.645
+      "wall_seconds": 4.5667,
+      "per_track_microseconds": 434.92,
+      "throughput_tracks_per_second": 2299.3,
+      "median_batch_call_ms": 13.47,
+      "p95_batch_call_ms": 14.913,
+      "p99_batch_call_ms": 15.749
     },
     "256": {
-      "wall_seconds": 0.5864,
-      "per_track_microseconds": 55.85,
-      "throughput_tracks_per_second": 17905.1,
-      "median_batch_call_ms": 13.562,
-      "p95_batch_call_ms": 16.119,
-      "p99_batch_call_ms": 17.266
+      "wall_seconds": 0.5751,
+      "per_track_microseconds": 54.77,
+      "throughput_tracks_per_second": 18257.9,
+      "median_batch_call_ms": 13.327,
+      "p95_batch_call_ms": 15.496,
+      "p99_batch_call_ms": 16.639
     },
     "1024": {
-      "wall_seconds": 0.153,
-      "per_track_microseconds": 14.57,
-      "throughput_tracks_per_second": 68648.9,
-      "median_batch_call_ms": 13.843,
-      "p95_batch_call_ms": 15.366,
-      "p99_batch_call_ms": 15.59
+      "wall_seconds": 0.1778,
+      "per_track_microseconds": 16.94,
+      "throughput_tracks_per_second": 59049.2,
+      "median_batch_call_ms": 16.208,
+      "p95_batch_call_ms": 18.412,
+      "p99_batch_call_ms": 18.717
     }
   },
   "headline_latency": {
-    "batch_size_1_per_track_us": 13261.05,
-    "batch_size_1024_per_track_us": 14.57,
+    "batch_size_1_per_track_us": 14032.01,
+    "batch_size_1024_per_track_us": 16.94,
     "inference_latency_improvement_pct": 99.9
   },
+  "video_pipeline": {
+    "segments_processed": 1021,
+    "videos_processed": 50,
+    "total_wall_ms": 0.461,
+    "median_per_video_us": 8.83,
+    "p99_per_video_us": 14.9,
+    "segments_per_second": 2216142.8,
+    "videos_per_second": 108528.1,
+    "distinct_emotion_targets": [
+      "aggressive",
+      "calm",
+      "energetic",
+      "happy",
+      "sad"
+    ]
+  },
   "end_to_end": {
-    "naive_wall_seconds_median": 2.317,
-    "optimized_wall_seconds_median": 0.0225,
-    "processing_time_improvement_pct": 99.0,
+    "naive_wall_seconds_median": 2.3741,
+    "optimized_wall_seconds_median": 0.0219,
+    "processing_time_improvement_pct": 99.1,
     "naive_runs_seconds": [
-      2.3764,
-      2.2809,
-      2.317
+      2.3741,
+      2.3722,
+      2.4051
     ],
     "optimized_runs_seconds": [
-      0.0228,
-      0.0225,
-      0.0214
+      0.021,
+      0.0222,
+      0.0219
     ]
   }
 }

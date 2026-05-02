@@ -111,20 +111,28 @@ def benchmark_end_to_end(df: pd.DataFrame,
       B) Optimized — scaler pre-fit and reused, scoring vectorized over
          the entire DataFrame using numpy ops.
 
-    Both modes do the same work (load features, scale, predict, score
-    against video target emotions, sort, return top 10), so the wall
-    clock difference reflects the optimization's contribution and
-    nothing else.
+    Both modes consume the full multimodal input: every video segment in
+    video_df is passed through map_video_content_to_emotions() so the
+    target emotion set is derived from the actual segment labels, not
+    hardcoded. That exercises the real video → emotion-target → audio
+    classifier → recommendation path end-to-end on the synthetic dataset.
     """
     from sklearn.preprocessing import StandardScaler
+
+    from main import map_video_content_to_emotions
 
     print(f"\nEnd-to-end pipeline benchmark — {len(df)} tracks, {len(video_df)} segments")
 
     feats_df = df[FEATURE_COLUMNS].copy()
     feats_array = feats_df.values
 
-    target_emotions = {"happy", "energetic"}
+    label_series = video_df["Label Description"].astype(str)
+    category_series = video_df["Category Description"].astype(str)
+    top_labels = label_series.value_counts().head(5).index.tolist()
+    top_categories = category_series.value_counts().head(5).index.tolist()
+    target_emotions = set(map_video_content_to_emotions(top_labels, top_categories))
     avg_video_intensity = float(video_df["Confidence"].mean())
+    print(f"  Derived target emotions from video segments: {sorted(target_emotions)}")
 
     def naive_pipeline() -> int:
         scaler = StandardScaler()
@@ -188,6 +196,57 @@ def benchmark_end_to_end(df: pd.DataFrame,
     }
 
 
+def benchmark_video_pipeline(video_df: pd.DataFrame) -> dict[str, Any]:
+    """Time the video → emotion-target path on every segment.
+
+    Iterates through all segments grouped by video file, runs
+    map_video_content_to_emotions() once per video using that video's
+    own label/category distribution. This is the function Google Video
+    Intelligence output feeds into; running it on the synthetic-shape
+    segments exercises the same code path real GVI output would hit.
+    """
+    from main import map_video_content_to_emotions
+
+    print(f"\nVideo segment processing benchmark — {len(video_df)} segments "
+          f"across {video_df['Video'].nunique()} unique videos")
+
+    grouped = list(video_df.groupby("Video"))
+    n_segments = int(len(video_df))
+    n_videos = len(grouped)
+
+    durations: list[float] = []
+    distinct_targets: set[str] = set()
+    for _, group in grouped:
+        labels = group["Label Description"].astype(str).value_counts().head(5).index.tolist()
+        categories = group["Category Description"].astype(str).value_counts().head(5).index.tolist()
+        t0 = time.perf_counter()
+        targets = map_video_content_to_emotions(labels, categories)
+        durations.append(time.perf_counter() - t0)
+        distinct_targets.update(targets)
+
+    total_wall = float(np.sum(durations))
+    median_per_video = float(np.median(durations) * 1e6)
+    p99_per_video = float(np.percentile(durations, 99) * 1e6)
+    throughput_segments = n_segments / total_wall if total_wall > 0 else float("inf")
+    throughput_videos = n_videos / total_wall if total_wall > 0 else float("inf")
+
+    print(f"  total wall: {total_wall * 1000:.2f} ms")
+    print(f"  median per-video: {median_per_video:.1f} us  p99: {p99_per_video:.1f} us")
+    print(f"  throughput: {throughput_segments:,.0f} segments/s  ({throughput_videos:,.0f} videos/s)")
+    print(f"  distinct emotion targets surfaced: {sorted(distinct_targets)}")
+
+    return {
+        "segments_processed": n_segments,
+        "videos_processed": n_videos,
+        "total_wall_ms": round(total_wall * 1000, 3),
+        "median_per_video_us": round(median_per_video, 2),
+        "p99_per_video_us": round(p99_per_video, 2),
+        "segments_per_second": round(throughput_segments, 1),
+        "videos_per_second": round(throughput_videos, 1),
+        "distinct_emotion_targets": sorted(distinct_targets),
+    }
+
+
 def latency_improvement(latency_results: dict[int, dict[str, Any]]) -> dict[str, Any]:
     """Compute the headline latency improvement: per-track latency at
     batch_size=1 vs batch_size=1024."""
@@ -222,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
 
     latency_results = benchmark_inference_latency(classifier, features)
     headline_latency = latency_improvement(latency_results)
+    video_results = benchmark_video_pipeline(video_df)
     e2e_results = benchmark_end_to_end(df, video_df, classifier)
 
     output = {
@@ -233,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         },
         "inference_latency": latency_results,
         "headline_latency": headline_latency,
+        "video_pipeline": video_results,
         "end_to_end": e2e_results,
     }
 
