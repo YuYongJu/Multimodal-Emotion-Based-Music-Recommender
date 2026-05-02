@@ -46,7 +46,7 @@ jobs:
       - run: pip install --upgrade pip
       - run: pip install -e ".[dev]"
       - run: bandit -c pyproject.toml -r audio_features.py AutoLabel.py GoogleVideoIntelligenceAPI.py main.py recommend_spotify_playlist_music_for_tiktok_edits.py
-      - run: pip-audit --strict --ignore-vuln GHSA-pq67-6m6q-mj2v
+      - run: pip-audit --skip-editable --requirement requirements.txt
 
   test:
     runs-on: ubuntu-latest
@@ -67,7 +67,11 @@ jobs:
           sudo apt-get install -y libsndfile1 ffmpeg
       - run: pip install --upgrade pip
       - run: pip install -e ".[dev]"
-      - run: pytest --cov=. --cov-report=term-missing --cov-report=xml
+      - name: Run fast tests
+        run: pytest -m "not slow" --cov=. --cov-report=term-missing --cov-report=xml
+      - name: Run slow tests
+        run: pytest -m slow --no-cov -q
+        timeout-minutes: 8
       - uses: actions/upload-artifact@v4
         if: always()
         with:
