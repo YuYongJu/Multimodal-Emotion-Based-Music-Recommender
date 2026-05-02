@@ -1,6 +1,7 @@
 """Runtime smoke tests — the things that don't break code logic but
 break deployments: missing entrypoints, broken imports, env-var
 crashes, file path issues."""
+
 from __future__ import annotations
 
 import os
@@ -24,29 +25,42 @@ class TestModuleImports:
 
     @pytest.fixture(autouse=True)
     def clean_env(self, monkeypatch):
-        for var in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET",
-                    "GOOGLE_APPLICATION_CREDENTIALS", "PLAYLIST_IDS",
-                    "BUCKET_NAME"):
+        for var in (
+            "SPOTIFY_CLIENT_ID",
+            "SPOTIFY_CLIENT_SECRET",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "PLAYLIST_IDS",
+            "BUCKET_NAME",
+        ):
             monkeypatch.delenv(var, raising=False)
 
     def test_audio_features_imports_cleanly(self) -> None:
         result = subprocess.run(
             [sys.executable, "-c", "import audio_features"],
-            cwd=REPO_ROOT, capture_output=True, text=True, env=_clean_env(),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
         )
         assert result.returncode == 0, result.stderr
 
     def test_autolabel_imports_cleanly(self) -> None:
         result = subprocess.run(
             [sys.executable, "-c", "import AutoLabel"],
-            cwd=REPO_ROOT, capture_output=True, text=True, env=_clean_env(),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
         )
         assert result.returncode == 0, result.stderr
 
     def test_main_imports_cleanly(self) -> None:
         result = subprocess.run(
             [sys.executable, "-c", "import main"],
-            cwd=REPO_ROOT, capture_output=True, text=True, env=_clean_env(),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
         )
         assert result.returncode == 0, result.stderr
 
@@ -55,7 +69,10 @@ class TestModuleImports:
         function call fails."""
         result = subprocess.run(
             [sys.executable, "-c", "import GoogleVideoIntelligenceAPI"],
-            cwd=REPO_ROOT, capture_output=True, text=True, env=_clean_env(),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
         )
         assert result.returncode == 0, result.stderr
 
@@ -64,7 +81,10 @@ class TestCLIEntryPoints:
     def test_main_help_runs(self) -> None:
         result = subprocess.run(
             [sys.executable, "main.py", "--help"],
-            cwd=REPO_ROOT, capture_output=True, text=True, env=_clean_env(),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
             timeout=30,
         )
         assert result.returncode == 0
@@ -76,7 +96,10 @@ class TestCLIEntryPoints:
     def test_main_no_args_prints_help(self) -> None:
         result = subprocess.run(
             [sys.executable, "main.py"],
-            cwd=REPO_ROOT, capture_output=True, text=True, env=_clean_env(),
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_env(),
             timeout=30,
         )
         assert result.returncode == 0
@@ -111,6 +134,7 @@ class TestShippedArtifactsPresent:
         path = REPO_ROOT / "results" / "evaluation.json"
         assert path.exists(), "shipped evaluation results are missing"
         import json
+
         data = json.loads(path.read_text())
         assert "metrics" in data
         assert "accuracy" in data["metrics"]
@@ -119,9 +143,9 @@ class TestShippedArtifactsPresent:
         path = REPO_ROOT / "results" / "benchmark.json"
         assert path.exists(), "shipped benchmark results are missing"
         import json
+
         data = json.loads(path.read_text())
-        for key in ("inference_latency", "headline_latency", "video_pipeline",
-                    "end_to_end"):
+        for key in ("inference_latency", "headline_latency", "video_pipeline", "end_to_end"):
             assert key in data, f"benchmark results missing '{key}' section"
 
     def test_documentation_present(self) -> None:
@@ -144,7 +168,15 @@ class TestNoCredentialFiles:
 
 def _clean_env() -> dict:
     """Subprocess env without Spotify/GCP creds, but with PATH so python runs."""
-    return {k: v for k, v in os.environ.items()
-            if k not in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET",
-                         "GOOGLE_APPLICATION_CREDENTIALS", "PLAYLIST_IDS",
-                         "BUCKET_NAME")}
+    return {
+        k: v
+        for k, v in os.environ.items()
+        if k
+        not in (
+            "SPOTIFY_CLIENT_ID",
+            "SPOTIFY_CLIENT_SECRET",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "PLAYLIST_IDS",
+            "BUCKET_NAME",
+        )
+    }

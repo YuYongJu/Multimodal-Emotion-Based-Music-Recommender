@@ -1,4 +1,5 @@
 """Unit tests for audio_features.py — the two-source feature extractor."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -18,12 +19,23 @@ from audio_features import (
 class TestFromSpotify:
     def test_returns_features_dict_when_api_succeeds(self) -> None:
         sp = MagicMock()
-        sp.audio_features.return_value = [{
-            "danceability": 0.7, "energy": 0.8, "key": 5, "loudness": -4.0,
-            "mode": 1, "speechiness": 0.05, "acousticness": 0.1,
-            "instrumentalness": 0.0, "liveness": 0.12, "valence": 0.6,
-            "tempo": 120.0, "id": "abc", "type": "audio_features",
-        }]
+        sp.audio_features.return_value = [
+            {
+                "danceability": 0.7,
+                "energy": 0.8,
+                "key": 5,
+                "loudness": -4.0,
+                "mode": 1,
+                "speechiness": 0.05,
+                "acousticness": 0.1,
+                "instrumentalness": 0.0,
+                "liveness": 0.12,
+                "valence": 0.6,
+                "tempo": 120.0,
+                "id": "abc",
+                "type": "audio_features",
+            }
+        ]
         result = from_spotify(sp, "abc")
         assert result is not None
         assert set(result.keys()) == set(FEATURE_COLUMNS)
@@ -49,12 +61,14 @@ class TestFromSpotify:
 
     def test_filters_to_canonical_feature_columns_only(self) -> None:
         sp = MagicMock()
-        sp.audio_features.return_value = [{
-            **dict.fromkeys(FEATURE_COLUMNS, 0.5),
-            "uri": "spotify:track:abc",
-            "track_href": "https://api.spotify.com/...",
-            "analysis_url": "https://api.spotify.com/...",
-        }]
+        sp.audio_features.return_value = [
+            {
+                **dict.fromkeys(FEATURE_COLUMNS, 0.5),
+                "uri": "spotify:track:abc",
+                "track_href": "https://api.spotify.com/...",
+                "analysis_url": "https://api.spotify.com/...",
+            }
+        ]
         result = from_spotify(sp, "abc")
         assert result is not None
         assert "uri" not in result
@@ -78,6 +92,7 @@ class TestFromPreviewUrl:
     def test_returns_none_when_librosa_unavailable(self, mocker) -> None:
         """The guarded import returns None instead of raising ImportError."""
         import builtins
+
         original_import = builtins.__import__
 
         def fake_import(name, *args, **kwargs):
@@ -113,9 +128,12 @@ class TestGetAudioFeatures:
     def test_resolution_order_spotify_first(self, mocker) -> None:
         """When Spotify works, librosa path must not be touched."""
         sp = MagicMock()
-        sp.audio_features.return_value = [{
-            **dict.fromkeys(FEATURE_COLUMNS, 0.42), "id": "abc",
-        }]
+        sp.audio_features.return_value = [
+            {
+                **dict.fromkeys(FEATURE_COLUMNS, 0.42),
+                "id": "abc",
+            }
+        ]
         librosa_spy = mocker.patch("audio_features.from_preview_url")
         result = get_audio_features("abc", "https://example.com/p.mp3", sp=sp)
         assert result["_source"] == "spotify_api"
@@ -125,9 +143,7 @@ class TestGetAudioFeatures:
         sp = MagicMock()
         sp.audio_features.return_value = [None]
         librosa_features = dict.fromkeys(FEATURE_COLUMNS, 0.3)
-        mocker.patch(
-            "audio_features.from_preview_url", return_value=librosa_features
-        )
+        mocker.patch("audio_features.from_preview_url", return_value=librosa_features)
         result = get_audio_features("abc", "https://example.com/p.mp3", sp=sp)
         assert result["_source"] == "librosa_preview"
 
@@ -140,9 +156,7 @@ class TestGetAudioFeatures:
 
     def test_no_spotify_client_uses_librosa_directly(self, mocker) -> None:
         librosa_features = dict.fromkeys(FEATURE_COLUMNS, 0.5)
-        mocker.patch(
-            "audio_features.from_preview_url", return_value=librosa_features
-        )
+        mocker.patch("audio_features.from_preview_url", return_value=librosa_features)
         result = get_audio_features("abc", "https://example.com/p.mp3", sp=None)
         assert result["_source"] == "librosa_preview"
 
@@ -157,6 +171,7 @@ class TestFeatureColumnsContract:
         AutoLabel.FEATURE_COLUMNS and audio_features.FEATURE_COLUMNS
         must stay aligned."""
         from AutoLabel import FEATURE_COLUMNS as classifier_cols
+
         assert list(audio_features.FEATURE_COLUMNS) == list(classifier_cols)
 
     def test_eleven_canonical_features(self) -> None:

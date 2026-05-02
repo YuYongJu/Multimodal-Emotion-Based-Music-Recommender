@@ -4,6 +4,7 @@ Mocks Spotify HTTP (via responses) and Google Video Intelligence
 (via unittest.mock) so the test exercises the real glue code between
 modules without external API calls.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,8 +36,7 @@ def trained_classifier_on_synth(small_track_dataframe: pd.DataFrame):
     feats = df[FEATURE_COLUMNS]
     classifier = MusicEmotionClassifier()
     labels = classifier._assign_initial_emotions(feats)
-    classifier.train(feats.values, labels, epochs=3,
-                    batch_size=32, validation_split=0.2)
+    classifier.train(feats.values, labels, epochs=3, batch_size=32, validation_split=0.2)
     return classifier
 
 
@@ -44,6 +44,7 @@ def trained_classifier_on_synth(small_track_dataframe: pd.DataFrame):
 def synthetic_metadata_xlsx(tmp_path):
     """Materialise a small but real-shape metadata xlsx the pipeline can read."""
     from generate_synthetic_dataset import generate_audio_features
+
     df = generate_audio_features(n=80, seed=3)
     path = tmp_path / "spotify_metadata.xlsx"
     df.to_excel(path, index=False)
@@ -57,14 +58,16 @@ def synthetic_video_xlsx(tmp_path):
     rows = []
     for v in range(3):
         for s in range(8):
-            rows.append({
-                "Video": f"action_video_{v}.mp4",
-                "Label Description": ["fight", "explosion", "chase"][s % 3],
-                "Category Description": "Action",
-                "Start Time": s * 3.0,
-                "End Time": s * 3.0 + 2.5,
-                "Confidence": 0.85 + (s % 3) * 0.04,
-            })
+            rows.append(
+                {
+                    "Video": f"action_video_{v}.mp4",
+                    "Label Description": ["fight", "explosion", "chase"][s % 3],
+                    "Category Description": "Action",
+                    "Start Time": s * 3.0,
+                    "End Time": s * 3.0 + 2.5,
+                    "Confidence": 0.85 + (s % 3) * 0.04,
+                }
+            )
     path = tmp_path / "GoogleVideoIntelligenceLabelAnalyzer_results.xlsx"
     pd.DataFrame(rows).to_excel(path, index=False)
     return path
@@ -73,8 +76,12 @@ def synthetic_video_xlsx(tmp_path):
 class TestFullPipelineIntegration:
     @pytest.mark.slow
     def test_recommend_runs_end_to_end_on_synthetic_inputs(
-        self, tmp_path, monkeypatch, synthetic_metadata_xlsx,
-        synthetic_video_xlsx, trained_classifier_on_synth,
+        self,
+        tmp_path,
+        monkeypatch,
+        synthetic_metadata_xlsx,
+        synthetic_video_xlsx,
+        trained_classifier_on_synth,
     ) -> None:
         """End-to-end: video xlsx + metadata xlsx + trained model →
         ranked recommendations DataFrame with expected schema."""
@@ -87,9 +94,7 @@ class TestFullPipelineIntegration:
         monkeypatch.chdir(tmp_path)
         Path("emotion_classifier_model.h5").write_bytes(model_path.read_bytes())
         Path("emotion_scaler.pkl").write_bytes(scaler_path.read_bytes())
-        Path("spotify_metadata.xlsx").write_bytes(
-            synthetic_metadata_xlsx.read_bytes()
-        )
+        Path("spotify_metadata.xlsx").write_bytes(synthetic_metadata_xlsx.read_bytes())
         Path("GoogleVideoIntelligenceLabelAnalyzer_results.xlsx").write_bytes(
             synthetic_video_xlsx.read_bytes()
         )
@@ -109,6 +114,7 @@ class TestFullPipelineIntegration:
         """Contract: a fight-labeled video must produce a target set
         that includes 'aggressive'. This is the core multimodal claim."""
         from main import map_video_content_to_emotions
+
         targets = map_video_content_to_emotions(
             labels=["fight", "explosion", "chase"],
             categories=["Action"],
@@ -117,6 +123,7 @@ class TestFullPipelineIntegration:
 
     def test_calm_video_does_not_surface_aggressive_target(self) -> None:
         from main import map_video_content_to_emotions
+
         targets = map_video_content_to_emotions(
             labels=["sunset", "water", "sky"],
             categories=["Nature"],
@@ -138,10 +145,18 @@ class TestFullPipelineIntegration:
         scaler_path = tmp_path / "emotion_scaler.pkl"
         trained_classifier_on_synth.save_model(str(model_path), str(scaler_path))
 
-        legacy_metadata = pd.DataFrame([
-            {"track_id": "abc", "track_name": "Old Track", "artist": "Test",
-             "popularity": 50, "duration_ms": 200000, "preview_url": ""}
-        ])
+        legacy_metadata = pd.DataFrame(
+            [
+                {
+                    "track_id": "abc",
+                    "track_name": "Old Track",
+                    "artist": "Test",
+                    "popularity": 50,
+                    "duration_ms": 200000,
+                    "preview_url": "",
+                }
+            ]
+        )
         legacy_path = tmp_path / "legacy_metadata.xlsx"
         legacy_metadata.to_excel(legacy_path, index=False)
 
@@ -164,9 +179,7 @@ class TestSpotifyFetchWithMockedAPI:
 
         mock_sp = MagicMock()
         mock_sp.playlist_items.side_effect = [
-            {"items": [
-                {"track": {"id": f"track_{i}"}} for i in range(3)
-            ]},
+            {"items": [{"track": {"id": f"track_{i}"}} for i in range(3)]},
             {"items": []},
         ]
         mock_sp.track.side_effect = [
@@ -181,12 +194,22 @@ class TestSpotifyFetchWithMockedAPI:
             for i in range(3)
         ]
         mock_sp.audio_features.side_effect = [
-            [{
-                "danceability": 0.7, "energy": 0.8, "key": 5, "loudness": -4.0,
-                "mode": 1, "speechiness": 0.05, "acousticness": 0.1,
-                "instrumentalness": 0.0, "liveness": 0.12, "valence": 0.6,
-                "tempo": 120.0, "id": f"track_{i}",
-            }]
+            [
+                {
+                    "danceability": 0.7,
+                    "energy": 0.8,
+                    "key": 5,
+                    "loudness": -4.0,
+                    "mode": 1,
+                    "speechiness": 0.05,
+                    "acousticness": 0.1,
+                    "instrumentalness": 0.0,
+                    "liveness": 0.12,
+                    "valence": 0.6,
+                    "tempo": 120.0,
+                    "id": f"track_{i}",
+                }
+            ]
             for i in range(3)
         ]
 
@@ -212,17 +235,26 @@ class TestSpotifyFetchWithMockedAPI:
             {"items": []},
         ]
         mock_sp.track.return_value = {
-            "name": "T", "artists": [{"name": "A"}],
+            "name": "T",
+            "artists": [{"name": "A"}],
             "album": {"name": "Alb", "release_date": "2024-01-01"},
-            "duration_ms": 200000, "popularity": 60,
+            "duration_ms": 200000,
+            "popularity": 60,
             "preview_url": "https://example.com/preview.mp3",
         }
         mock_sp.audio_features.side_effect = Exception("403 Forbidden")
 
         librosa_features = {
-            "danceability": 0.55, "energy": 0.65, "key": 7, "loudness": -6.0,
-            "mode": 0, "speechiness": 0.07, "acousticness": 0.20,
-            "instrumentalness": 0.05, "liveness": 0.18, "valence": 0.45,
+            "danceability": 0.55,
+            "energy": 0.65,
+            "key": 7,
+            "loudness": -6.0,
+            "mode": 0,
+            "speechiness": 0.07,
+            "acousticness": 0.20,
+            "instrumentalness": 0.05,
+            "liveness": 0.18,
+            "valence": 0.45,
             "tempo": 110.0,
         }
         mocker.patch(

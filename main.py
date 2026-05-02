@@ -8,6 +8,7 @@ All clients are initialised lazily so the script doesn't crash at import
 when an environment variable is missing for a subcommand the user isn't
 running.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,11 +34,13 @@ def _require_env(name: str) -> str:
     return value
 
 
-def fetch_spotify_data(playlist_id: str | None = None,
-                      output_file: str = DEFAULT_SPOTIFY_FILE) -> str:
+def fetch_spotify_data(
+    playlist_id: str | None = None, output_file: str = DEFAULT_SPOTIFY_FILE
+) -> str:
     """Fetch Spotify playlist + real audio features, write to xlsx."""
     print("Fetching Spotify metadata with real audio features...")
     from recommend_spotify_playlist_music_for_tiktok_edits import fetch_spotify_metadata
+
     target = playlist_id or os.getenv("PLAYLIST_IDS", "37i9dQZF1DXcBWIGoYBM5M").split(",")[0]
     df = fetch_spotify_metadata(target)
     if df.empty:
@@ -51,14 +54,16 @@ def analyze_video(bucket_name: str) -> str:
     """Run Google Video Intelligence on every .mp4 in the bucket."""
     print(f"Analyzing videos in bucket {bucket_name} via Google Video Intelligence...")
     from GoogleVideoIntelligenceAPI import analyze_videos_in_bucket
+
     output_file = analyze_videos_in_bucket(bucket_name)
     if output_file is None:
         raise SystemExit(f"No videos found in bucket {bucket_name}")
     return output_file
 
 
-def train_emotion_classifier(spotify_data_path: str = DEFAULT_SPOTIFY_FILE,
-                              epochs: int = 30) -> MusicEmotionClassifier:
+def train_emotion_classifier(
+    spotify_data_path: str = DEFAULT_SPOTIFY_FILE, epochs: int = 30
+) -> MusicEmotionClassifier:
     print("Training emotion classifier on real audio features...")
     classifier = MusicEmotionClassifier()
     X, y = classifier.preprocess_data(spotify_data_path)
@@ -70,17 +75,32 @@ def train_emotion_classifier(spotify_data_path: str = DEFAULT_SPOTIFY_FILE,
 def map_video_content_to_emotions(labels: list[str], categories: list[str]) -> list[str]:
     """Map Video Intelligence labels/categories to target music emotions."""
     mapping = {
-        "dance": ["energetic", "happy"], "performance": ["energetic"],
-        "music": ["happy", "energetic"], "fun": ["happy"], "smile": ["happy"],
-        "nature": ["calm"], "water": ["calm"], "sky": ["calm"],
-        "fight": ["aggressive"], "explosion": ["aggressive"],
-        "romance": ["calm", "sad"], "love": ["happy", "calm"],
-        "food": ["happy"], "sports": ["energetic"], "game": ["energetic"],
-        "cry": ["sad"], "tears": ["sad"], "night": ["calm", "sad"],
-        "sunset": ["calm"], "party": ["happy", "energetic"],
-        "entertainment": ["happy", "energetic"], "art": ["calm"],
-        "action": ["energetic", "aggressive"], "drama": ["sad", "calm"],
-        "comedy": ["happy"], "adventure": ["energetic"],
+        "dance": ["energetic", "happy"],
+        "performance": ["energetic"],
+        "music": ["happy", "energetic"],
+        "fun": ["happy"],
+        "smile": ["happy"],
+        "nature": ["calm"],
+        "water": ["calm"],
+        "sky": ["calm"],
+        "fight": ["aggressive"],
+        "explosion": ["aggressive"],
+        "romance": ["calm", "sad"],
+        "love": ["happy", "calm"],
+        "food": ["happy"],
+        "sports": ["energetic"],
+        "game": ["energetic"],
+        "cry": ["sad"],
+        "tears": ["sad"],
+        "night": ["calm", "sad"],
+        "sunset": ["calm"],
+        "party": ["happy", "energetic"],
+        "entertainment": ["happy", "energetic"],
+        "art": ["calm"],
+        "action": ["energetic", "aggressive"],
+        "drama": ["sad", "calm"],
+        "comedy": ["happy"],
+        "adventure": ["energetic"],
     }
     target = set()
     for term in [t.lower() for t in labels + categories]:
@@ -106,9 +126,7 @@ def recommend_music_for_video(
             "provide an existing video analysis xlsx"
         )
     if not os.path.exists(spotify_data_path):
-        raise SystemExit(
-            f"{spotify_data_path} not found — run --fetch-spotify first"
-        )
+        raise SystemExit(f"{spotify_data_path} not found — run --fetch-spotify first")
 
     video_df = pd.read_excel(video_data_path)
     label_counts = video_df["Label Description"].value_counts()
@@ -145,11 +163,13 @@ def recommend_music_for_video(
 
     avg_video_intensity = float(video_df["Confidence"].mean())
 
-    recommendations = pd.DataFrame({
-        "track_name": music_df["track_name"],
-        "artist": music_df["artist"],
-        "predicted_emotion": predicted_emotions,
-    })
+    recommendations = pd.DataFrame(
+        {
+            "track_name": music_df["track_name"],
+            "artist": music_df["artist"],
+            "predicted_emotion": predicted_emotions,
+        }
+    )
     scores = []
     for i, emotion in enumerate(predicted_emotions):
         score = 0.0
@@ -173,23 +193,30 @@ def recommend_music_for_video(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Multimodal video-to-music recommender"
+    parser = argparse.ArgumentParser(description="Multimodal video-to-music recommender")
+    parser.add_argument(
+        "--fetch-spotify", action="store_true", help="Fetch Spotify metadata + audio features"
     )
-    parser.add_argument("--fetch-spotify", action="store_true",
-                        help="Fetch Spotify metadata + audio features")
-    parser.add_argument("--playlist-id", type=str,
-                        help="Specific Spotify playlist ID to fetch")
-    parser.add_argument("--analyze-video", action="store_true",
-                        help="Run Google Video Intelligence on bucket .mp4s")
-    parser.add_argument("--bucket-name", type=str,
-                        default=os.getenv("BUCKET_NAME", "music-emotion-classification-videos"))
-    parser.add_argument("--train-model", action="store_true",
-                        help="Train the emotion classifier on fetched features")
-    parser.add_argument("--recommend", action="store_true",
-                        help="Recommend music for the analyzed video")
-    parser.add_argument("--full-pipeline", action="store_true",
-                        help="Run fetch → analyze → train → recommend")
+    parser.add_argument("--playlist-id", type=str, help="Specific Spotify playlist ID to fetch")
+    parser.add_argument(
+        "--analyze-video", action="store_true", help="Run Google Video Intelligence on bucket .mp4s"
+    )
+    parser.add_argument(
+        "--bucket-name",
+        type=str,
+        default=os.getenv("BUCKET_NAME", "music-emotion-classification-videos"),
+    )
+    parser.add_argument(
+        "--train-model",
+        action="store_true",
+        help="Train the emotion classifier on fetched features",
+    )
+    parser.add_argument(
+        "--recommend", action="store_true", help="Recommend music for the analyzed video"
+    )
+    parser.add_argument(
+        "--full-pipeline", action="store_true", help="Run fetch → analyze → train → recommend"
+    )
     return parser
 
 

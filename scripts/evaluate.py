@@ -21,6 +21,7 @@ that rule surface — accuracy here measures how well the MLP generalizes
 the rule to held-out feature points, not whether the rules are themselves
 correct. That distinction is documented in EVALUATION.md.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -71,14 +72,16 @@ def main(argv: list[str] | None = None) -> int:
     label_indices = label_array.argmax(axis=1)
 
     print("\nLabel distribution (rule-based bootstrap):")
-    label_counts = pd.Series(
-        [EMOTION_CATEGORIES[i] for i in label_indices]
-    ).value_counts()
+    label_counts = pd.Series([EMOTION_CATEGORIES[i] for i in label_indices]).value_counts()
     print(label_counts.to_string())
 
     X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(
-        feats_df.values, label_array, label_indices,
-        test_size=0.2, random_state=args.seed, stratify=label_indices,
+        feats_df.values,
+        label_array,
+        label_indices,
+        test_size=0.2,
+        random_state=args.seed,
+        stratify=label_indices,
     )
     print(f"\nTrain: {len(X_train)} samples, Test: {len(X_test)} samples")
 
@@ -93,8 +96,11 @@ def main(argv: list[str] | None = None) -> int:
 
     accuracy = float(accuracy_score(idx_test, pred_indices))
     report = classification_report(
-        true_labels, pred_labels, labels=EMOTION_CATEGORIES,
-        output_dict=True, zero_division=0,
+        true_labels,
+        pred_labels,
+        labels=EMOTION_CATEGORIES,
+        output_dict=True,
+        zero_division=0,
     )
     cm = confusion_matrix(idx_test, pred_indices, labels=list(range(len(EMOTION_CATEGORIES))))
     confidence_top1 = pred_probs.max(axis=1)
@@ -103,9 +109,11 @@ def main(argv: list[str] | None = None) -> int:
     print("\nPer-class metrics:")
     for emotion in EMOTION_CATEGORIES:
         m = report.get(emotion, {})
-        print(f"  {emotion:>11}: precision={m.get('precision', 0):.3f}  "
-              f"recall={m.get('recall', 0):.3f}  f1={m.get('f1-score', 0):.3f}  "
-              f"support={int(m.get('support', 0))}")
+        print(
+            f"  {emotion:>11}: precision={m.get('precision', 0):.3f}  "
+            f"recall={m.get('recall', 0):.3f}  f1={m.get('f1-score', 0):.3f}  "
+            f"support={int(m.get('support', 0))}"
+        )
 
     print("\nConfidence distribution:")
     print(f"  mean: {confidence_top1.mean():.3f}")
@@ -157,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -171,8 +180,14 @@ def main(argv: list[str] | None = None) -> int:
         ax.set_title(f"Confusion matrix (accuracy {accuracy:.3f}, n={len(X_test)})")
         for i in range(len(EMOTION_CATEGORIES)):
             for j in range(len(EMOTION_CATEGORIES)):
-                ax.text(j, i, str(cm[i, j]), ha="center", va="center",
-                       color="white" if cm[i, j] > cm.max() / 2 else "black")
+                ax.text(
+                    j,
+                    i,
+                    str(cm[i, j]),
+                    ha="center",
+                    va="center",
+                    color="white" if cm[i, j] > cm.max() / 2 else "black",
+                )
         fig.colorbar(im, ax=ax)
         fig.tight_layout()
         cm_path = RESULTS_DIR / "confusion_matrix.png"

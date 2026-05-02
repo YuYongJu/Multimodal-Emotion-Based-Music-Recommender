@@ -8,6 +8,7 @@ we try the Spotify API first and fall back to local DSP via librosa on the
 Returned features are aligned with the Spotify schema so downstream code
 (MusicEmotionClassifier) sees the same column names regardless of source.
 """
+
 from __future__ import annotations
 
 import io
@@ -17,9 +18,17 @@ import numpy as np
 import requests
 
 FEATURE_COLUMNS = [
-    "danceability", "energy", "key", "loudness", "mode",
-    "speechiness", "acousticness", "instrumentalness", "liveness",
-    "valence", "tempo",
+    "danceability",
+    "energy",
+    "key",
+    "loudness",
+    "mode",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "tempo",
 ]
 
 _REQUEST_TIMEOUT = 15
@@ -68,7 +77,7 @@ def from_preview_url(preview_url: str) -> dict | None:
     if y.size == 0:
         return None
 
-    rms = float(np.sqrt(np.mean(y ** 2)))
+    rms = float(np.sqrt(np.mean(y**2)))
     energy = float(np.clip(rms * 4.0, 0.0, 1.0))
 
     rms_db = 20 * math.log10(rms + 1e-9)

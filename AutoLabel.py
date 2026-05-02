@@ -5,6 +5,7 @@ and trains a small Keras MLP. The previous version fabricated features
 with random.uniform() at both training and inference time, so the model
 had no predictive signal — that has been removed.
 """
+
 from __future__ import annotations
 
 import joblib
@@ -16,9 +17,17 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 FEATURE_COLUMNS = [
-    "danceability", "energy", "key", "loudness", "mode",
-    "speechiness", "acousticness", "instrumentalness", "liveness",
-    "valence", "tempo",
+    "danceability",
+    "energy",
+    "key",
+    "loudness",
+    "mode",
+    "speechiness",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "valence",
+    "tempo",
 ]
 
 EMOTION_CATEGORIES = ["happy", "sad", "energetic", "calm", "aggressive"]
@@ -53,9 +62,7 @@ class MusicEmotionClassifier:
         features_df = self._features_from_dataframe(df)
         features_df = features_df.dropna()
         if features_df.empty:
-            raise MissingFeaturesError(
-                "All rows have at least one NaN audio feature. Aborting."
-            )
+            raise MissingFeaturesError("All rows have at least one NaN audio feature. Aborting.")
         emotions = self._assign_initial_emotions(features_df)
         return features_df, emotions
 
@@ -92,54 +99,62 @@ class MusicEmotionClassifier:
         return encoded[self.emotion_categories].astype(float).values
 
     def build_model(self, input_shape: int):
-        model = Sequential([
-            Dense(64, activation="relu", input_dim=input_shape),
-            Dropout(0.3),
-            Dense(32, activation="relu"),
-            Dropout(0.3),
-            Dense(len(self.emotion_categories), activation="softmax"),
-        ])
-        model.compile(
-            loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+        model = Sequential(
+            [
+                Dense(64, activation="relu", input_dim=input_shape),
+                Dropout(0.3),
+                Dense(32, activation="relu"),
+                Dropout(0.3),
+                Dense(len(self.emotion_categories), activation="softmax"),
+            ]
         )
+        model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
         self.model = model
         return model
 
-    def train(self, X, y, epochs: int = 50, batch_size: int = 32,
-              validation_split: float = 0.2):
+    def train(self, X, y, epochs: int = 50, batch_size: int = 32, validation_split: float = 0.2):
         X_scaled = self.scaler.fit_transform(X)
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled, y, test_size=validation_split, random_state=42
         )
         if self.model is None:
             self.build_model(X_train.shape[1])
+        assert self.model is not None  # build_model just set it; for mypy
         history = self.model.fit(
-            X_train, y_train, epochs=epochs, batch_size=batch_size,
-            validation_data=(X_test, y_test), verbose=1,
+            X_train,
+            y_train,
+            epochs=epochs,
+            batch_size=batch_size,
+            validation_data=(X_test, y_test),
+            verbose=1,
         )
         loss, accuracy = self.model.evaluate(X_test, y_test, verbose=0)
         print(f"Validation loss: {loss:.4f} | Validation accuracy: {accuracy:.4f}")
         return history
 
-    def save_model(self, model_path: str = "emotion_classifier_model.h5",
-                   scaler_path: str = "emotion_scaler.pkl") -> None:
+    def save_model(
+        self,
+        model_path: str = "emotion_classifier_model.h5",
+        scaler_path: str = "emotion_scaler.pkl",
+    ) -> None:
         if self.model is None:
             raise RuntimeError("Model not trained yet")
         self.model.save(model_path)
         joblib.dump(self.scaler, scaler_path)
         print(f"Saved model → {model_path}, scaler → {scaler_path}")
 
-    def load_model(self, model_path: str = "emotion_classifier_model.h5",
-                   scaler_path: str = "emotion_scaler.pkl") -> None:
+    def load_model(
+        self,
+        model_path: str = "emotion_classifier_model.h5",
+        scaler_path: str = "emotion_scaler.pkl",
+    ) -> None:
         self.model = load_model(model_path)
         self.scaler = joblib.load(scaler_path)
         print(f"Loaded model from {model_path}, scaler from {scaler_path}")
 
     def predict_emotion(self, features: pd.DataFrame):
         if self.model is None:
-            raise RuntimeError(
-                "Model not trained or loaded — call train() or load_model() first"
-            )
+            raise RuntimeError("Model not trained or loaded — call train() or load_model() first")
         if isinstance(features, pd.DataFrame):
             features = features[FEATURE_COLUMNS].values
         features_scaled = self.scaler.transform(features)
@@ -150,6 +165,7 @@ class MusicEmotionClassifier:
 
 if __name__ == "__main__":
     import sys
+
     path = sys.argv[1] if len(sys.argv) > 1 else "spotify_metadata.xlsx"
     classifier = MusicEmotionClassifier()
     X, y = classifier.preprocess_data(path)

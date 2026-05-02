@@ -1,4 +1,5 @@
 """Unit tests for the synthetic dataset generator."""
+
 from __future__ import annotations
 
 import sys
@@ -38,11 +39,17 @@ class TestAudioFeatureGeneration:
 
     def test_features_in_canonical_ranges(self) -> None:
         df = generate_audio_features(n=500, seed=7)
-        bounded_unit = ["danceability", "energy", "valence", "speechiness",
-                        "acousticness", "instrumentalness", "liveness"]
+        bounded_unit = [
+            "danceability",
+            "energy",
+            "valence",
+            "speechiness",
+            "acousticness",
+            "instrumentalness",
+            "liveness",
+        ]
         for col in bounded_unit:
-            assert (df[col] >= 0.0).all() and (df[col] <= 1.0).all(), \
-                f"{col} out of [0, 1]"
+            assert (df[col] >= 0.0).all() and (df[col] <= 1.0).all(), f"{col} out of [0, 1]"
         assert (df["tempo"] >= 50.0).all() and (df["tempo"] <= 200.0).all()
         assert (df["loudness"] >= -60.0).all() and (df["loudness"] <= 0.0).all()
         assert df["key"].isin(range(12)).all()
@@ -82,8 +89,14 @@ class TestVideoSegmentGeneration:
 
     def test_includes_video_intelligence_schema(self) -> None:
         df = generate_video_segments(num_segments=50, seed=1)
-        for col in ["Video", "Label Description", "Category Description",
-                    "Start Time", "End Time", "Confidence"]:
+        for col in [
+            "Video",
+            "Label Description",
+            "Category Description",
+            "Start Time",
+            "End Time",
+            "Confidence",
+        ]:
             assert col in df.columns
 
     def test_every_row_tagged_synthetic(self) -> None:
@@ -107,8 +120,7 @@ class TestVideoSegmentGeneration:
             cat = row["Category Description"]
             label = row["Label Description"]
             assert cat in VIDEO_LABEL_VOCAB
-            assert label in VIDEO_LABEL_VOCAB[cat], \
-                f"label '{label}' not in category '{cat}'"
+            assert label in VIDEO_LABEL_VOCAB[cat], f"label '{label}' not in category '{cat}'"
 
     def test_time_intervals_have_positive_duration(self) -> None:
         df = generate_video_segments(num_segments=100, seed=1)

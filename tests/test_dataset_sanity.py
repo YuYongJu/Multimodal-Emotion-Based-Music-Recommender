@@ -4,6 +4,7 @@ These run against the actual files in data/ so a future change that
 silently corrupts the dataset (e.g., regenerating without _synthetic
 flags, dropping feature columns, drifting distributions) fails CI.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,16 +39,21 @@ class TestSchemaContract:
         assert missing == [], f"missing canonical columns: {missing}"
 
     def test_track_metadata_columns_present(self, tracks_df: pd.DataFrame) -> None:
-        for col in ("track_id", "track_name", "artist", "album_name",
-                    "popularity", "duration_ms"):
+        for col in ("track_id", "track_name", "artist", "album_name", "popularity", "duration_ms"):
             assert col in tracks_df.columns
 
     def test_synthetic_flag_present(self, tracks_df: pd.DataFrame) -> None:
         assert "_synthetic" in tracks_df.columns
 
     def test_video_intelligence_schema(self, segments_df: pd.DataFrame) -> None:
-        for col in ("Video", "Label Description", "Category Description",
-                    "Start Time", "End Time", "Confidence"):
+        for col in (
+            "Video",
+            "Label Description",
+            "Category Description",
+            "Start Time",
+            "End Time",
+            "Confidence",
+        ):
             assert col in segments_df.columns
 
 
@@ -57,8 +63,9 @@ class TestProvenanceInvariants:
     dataset, which would be a privacy/licensing concern."""
 
     def test_every_track_is_synthetic(self, tracks_df: pd.DataFrame) -> None:
-        assert tracks_df["_synthetic"].all(), \
+        assert tracks_df["_synthetic"].all(), (
             "non-synthetic rows committed to data/synthetic_tracks.csv"
+        )
 
     def test_every_segment_is_synthetic(self, segments_df: pd.DataFrame) -> None:
         assert segments_df["_synthetic"].all()
@@ -75,12 +82,14 @@ class TestScaleInvariants:
     truncation."""
 
     def test_track_count_at_least_10k(self, tracks_df: pd.DataFrame) -> None:
-        assert len(tracks_df) >= 10_000, \
+        assert len(tracks_df) >= 10_000, (
             f"resume bullet claims '10K+ tracks' but dataset has {len(tracks_df)}"
+        )
 
     def test_segment_count_at_least_1k(self, segments_df: pd.DataFrame) -> None:
-        assert len(segments_df) >= 1_000, \
+        assert len(segments_df) >= 1_000, (
             f"resume bullet claims '1K+ segments' but dataset has {len(segments_df)}"
+        )
 
     def test_segments_span_at_least_25_videos(self, segments_df: pd.DataFrame) -> None:
         n_videos = segments_df["Video"].nunique()
@@ -106,8 +115,15 @@ class TestValueRanges:
     accidentally widens a feature's range, this fails fast."""
 
     def test_unit_bounded_features(self, tracks_df: pd.DataFrame) -> None:
-        unit = ["danceability", "energy", "valence", "speechiness",
-                "acousticness", "instrumentalness", "liveness"]
+        unit = [
+            "danceability",
+            "energy",
+            "valence",
+            "speechiness",
+            "acousticness",
+            "instrumentalness",
+            "liveness",
+        ]
         for col in unit:
             assert tracks_df[col].min() >= 0.0, f"{col} has negatives"
             assert tracks_df[col].max() <= 1.0, f"{col} exceeds 1.0"
@@ -170,13 +186,11 @@ class TestLabelDistribution:
 
     def test_at_least_six_label_categories_emit(self, segments_df: pd.DataFrame) -> None:
         n_categories = segments_df["Category Description"].nunique()
-        assert n_categories >= 6, \
-            f"only {n_categories} categories in segment dataset"
+        assert n_categories >= 6, f"only {n_categories} categories in segment dataset"
 
     def test_no_single_category_dominates(self, segments_df: pd.DataFrame) -> None:
         """No category should be > 60% of segments — otherwise the
         derived emotion targets collapse."""
         cat_share = segments_df["Category Description"].value_counts(normalize=True)
         top_share = cat_share.iloc[0]
-        assert top_share <= 0.60, \
-            f"category '{cat_share.index[0]}' dominates at {top_share:.0%}"
+        assert top_share <= 0.60, f"category '{cat_share.index[0]}' dominates at {top_share:.0%}"

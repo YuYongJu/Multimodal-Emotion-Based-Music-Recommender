@@ -4,6 +4,7 @@ Replaces the previous version that fabricated audio features. Now fetches
 the actual danceability/energy/valence/tempo/etc. for each track via the
 audio_features module (Spotify API → librosa preview fallback).
 """
+
 from __future__ import annotations
 
 import os
@@ -23,9 +24,7 @@ def _get_spotify_client() -> spotipy.Spotify:
     client_id = os.getenv("SPOTIFY_CLIENT_ID")
     client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
     if not client_id or not client_secret:
-        raise RuntimeError(
-            "SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in .env"
-        )
+        raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set in .env")
     return spotipy.Spotify(
         client_credentials_manager=SpotifyClientCredentials(
             client_id=client_id, client_secret=client_secret
@@ -80,9 +79,7 @@ def fetch_spotify_metadata(
     offset = 0
     while True:
         try:
-            page = sp.playlist_items(
-                playlist_id, fields="items(track(id))", offset=offset
-            )
+            page = sp.playlist_items(playlist_id, fields="items(track(id))", offset=offset)
         except Exception as exc:
             print(f"  ! playlist_items failed at offset {offset}: {exc}")
             break
@@ -181,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     if df.empty:
         return 1
 
+    assert playlist_name is not None  # set together with playlist_id above
     safe_name = "".join(c if c.isalnum() or c == " " else "_" for c in playlist_name)
     output_file = f"spotify_metadata_{safe_name.replace(' ', '_')}.xlsx"
     df.to_excel(output_file, index=False)

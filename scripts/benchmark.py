@@ -15,6 +15,7 @@ The numbers in this file are real measurements on real CPU work the
 pipeline did. The synthetic dataset is what gets processed; the
 processing itself is the same code paths a real-data run would hit.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,8 +57,9 @@ def _load_or_train_classifier(df: pd.DataFrame) -> MusicEmotionClassifier:
     return classifier
 
 
-def benchmark_inference_latency(classifier: MusicEmotionClassifier,
-                                features: np.ndarray) -> dict[str, Any]:
+def benchmark_inference_latency(
+    classifier: MusicEmotionClassifier, features: np.ndarray
+) -> dict[str, Any]:
     """Measure per-track latency at varying batch sizes.
 
     Two warm-up passes per configuration to avoid measuring TF graph
@@ -101,9 +103,9 @@ def benchmark_inference_latency(classifier: MusicEmotionClassifier,
     return results
 
 
-def benchmark_end_to_end(df: pd.DataFrame,
-                        video_df: pd.DataFrame,
-                        classifier: MusicEmotionClassifier) -> dict[str, Any]:
+def benchmark_end_to_end(
+    df: pd.DataFrame, video_df: pd.DataFrame, classifier: MusicEmotionClassifier
+) -> dict[str, Any]:
     """Compare two end-to-end processing modes:
 
       A) Naive — refit StandardScaler each batch, score recommendations
@@ -207,8 +209,10 @@ def benchmark_video_pipeline(video_df: pd.DataFrame) -> dict[str, Any]:
     """
     from main import map_video_content_to_emotions
 
-    print(f"\nVideo segment processing benchmark — {len(video_df)} segments "
-          f"across {video_df['Video'].nunique()} unique videos")
+    print(
+        f"\nVideo segment processing benchmark — {len(video_df)} segments "
+        f"across {video_df['Video'].nunique()} unique videos"
+    )
 
     grouped = list(video_df.groupby("Video"))
     n_segments = int(len(video_df))
@@ -232,7 +236,9 @@ def benchmark_video_pipeline(video_df: pd.DataFrame) -> dict[str, Any]:
 
     print(f"  total wall: {total_wall * 1000:.2f} ms")
     print(f"  median per-video: {median_per_video:.1f} us  p99: {p99_per_video:.1f} us")
-    print(f"  throughput: {throughput_segments:,.0f} segments/s  ({throughput_videos:,.0f} videos/s)")
+    print(
+        f"  throughput: {throughput_segments:,.0f} segments/s  ({throughput_videos:,.0f} videos/s)"
+    )
     print(f"  distinct emotion targets surfaced: {sorted(distinct_targets)}")
 
     return {
@@ -303,10 +309,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nWrote {out_path}")
 
     print("\n=== Headline numbers ===")
-    print(f"Inference latency improvement (batch 1 vs 1024): "
-          f"{headline_latency['inference_latency_improvement_pct']}%")
-    print(f"End-to-end processing time improvement (naive vs optimized): "
-          f"{e2e_results['processing_time_improvement_pct']}%")
+    print(
+        f"Inference latency improvement (batch 1 vs 1024): "
+        f"{headline_latency['inference_latency_improvement_pct']}%"
+    )
+    print(
+        f"End-to-end processing time improvement (naive vs optimized): "
+        f"{e2e_results['processing_time_improvement_pct']}%"
+    )
     return 0
 
 

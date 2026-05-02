@@ -1,4 +1,5 @@
 """Unit tests for main.map_video_content_to_emotions and CLI surface."""
+
 from __future__ import annotations
 
 import os
@@ -104,14 +105,19 @@ class TestMainModuleImportsCleanly:
     def test_module_imports_without_env_vars(self, monkeypatch) -> None:
         """The lazy-init refactor means main can be imported without
         SPOTIFY_* or GOOGLE_APPLICATION_CREDENTIALS being set."""
-        for var in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET",
-                    "GOOGLE_APPLICATION_CREDENTIALS", "PLAYLIST_IDS",
-                    "BUCKET_NAME"):
+        for var in (
+            "SPOTIFY_CLIENT_ID",
+            "SPOTIFY_CLIENT_SECRET",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+            "PLAYLIST_IDS",
+            "BUCKET_NAME",
+        ):
             monkeypatch.delenv(var, raising=False)
         # Force re-import to verify
         import importlib
 
         import main
+
         importlib.reload(main)
         assert callable(main.map_video_content_to_emotions)
         assert callable(main.fetch_spotify_data)
